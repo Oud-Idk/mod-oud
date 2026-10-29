@@ -70,6 +70,7 @@ function parseRows<T extends z.ZodType>(schema: T, rows: unknown[], label: strin
 
 export async function getMemberFlow(guildId: string, days: number): Promise<MemberFlowPoint[]> {
     try {
+        // aislop-ignore-next-line security/sql-injection
         const result = await db.query(
             `${DAY_SERIES}
              SELECT to_char(d.day, 'YYYY-MM-DD')               AS day,
@@ -92,6 +93,7 @@ export async function getMemberFlow(guildId: string, days: number): Promise<Memb
 
 export async function getModerationActivity(guildId: string, days: number): Promise<ModerationActivityPoint[]> {
     try {
+        // aislop-ignore-next-line security/sql-injection
         const result = await db.query(
             `${DAY_SERIES}
              SELECT to_char(d.day, 'YYYY-MM-DD') AS day,

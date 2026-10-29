@@ -1,4 +1,4 @@
-import { FeatureMatrixCategory } from "./types";
+import { FeatureMatrixCategory, FeatureStatusItem } from "./types";
 
 export interface FeatureMatrixBuildParams {
     guildId: string;
@@ -30,227 +30,116 @@ export interface FeatureMatrixBuildParams {
     leaveEnabled: boolean;
 }
 
+type FeatureItem = FeatureMatrixCategory["features"][number];
+
+function createFeature(
+    guildId: string,
+    category: "Moderation & Security" | "Engagement & Fun" | "Utility & Tools" | "Onboarding",
+    id: string,
+    name: string,
+    enabled: boolean,
+    description: string
+): FeatureItem {
+    return {
+        id,
+        name,
+        category,
+        href: `/dashboard/${guildId}/${id}`,
+        enabled,
+        description,
+    };
+}
+
+function formatCountDesc(count: number, singular: string, emptyText: string, suffix = ""): string {
+    if (count <= 0) {
+        return emptyText;
+    }
+    const label = `${count.toString()} ${singular}${count === 1 ? "" : "s"}`;
+    return suffix !== "" ? `${label} ${suffix}` : label;
+}
+
+function buildModerationCategory(p: FeatureMatrixBuildParams): FeatureMatrixCategory {
+    const title = "Moderation & Security";
+    const item = (id: string, name: string, enabled: boolean, desc: string): FeatureStatusItem =>
+        createFeature(p.guildId, title, id, name, enabled, desc);
+
+    const mfDescription = p.mfEnabled
+        ? `${p.mfActiveCount.toString()} active rule${p.mfActiveCount === 1 ? "" : "s"}`
+        : "Disabled";
+
+    return {
+        title,
+        features: [
+            item("message-filtering", "Automod Filtering", p.mfEnabled, mfDescription),
+            item("anti-raid", "Anti-Raid", p.antiRaidEnabled, p.antiRaidEnabled ? "Active protection" : "Disabled"),
+            item("dynamic-slowmode", "Dynamic Slowmode", p.dynSlowmodeEnabled, p.dynSlowmodeEnabled ? "Adaptive traffic rate" : "Disabled"),
+            item("honeypot", "Honeypot Channel", p.honeypotEnabled, p.honeypotEnabled ? "Trap channel active" : "Not configured"),
+            item("report", "User Reporting", p.reportEnabled, p.reportEnabled ? "Reporting enabled" : "Disabled"),
+            item("message-logging", "Message Logging", p.msgLoggingEnabled, p.msgLoggingEnabled ? "Logging edits & purges" : "Disabled"),
+            item("moderation-dm", "Moderation DMs", p.modDmsEnabled, p.modDmsEnabled ? "DM notifications sent" : "Disabled"),
+        ],
+    };
+}
+
+function buildEngagementCategory(p: FeatureMatrixBuildParams): FeatureMatrixCategory {
+    const title = "Engagement & Fun";
+    const item = (id: string, name: string, enabled: boolean, desc: string): FeatureStatusItem =>
+        createFeature(p.guildId, title, id, name, enabled, desc);
+
+    return {
+        title,
+        features: [
+            item("leveling", "Leveling & XP", p.levelingEnabled, p.levelingEnabled ? "Tracking text XP" : "Disabled"),
+            item("starboard", "Starboards", p.starboardsCount > 0, formatCountDesc(p.starboardsCount, "board", "None configured", "active")),
+            item("reaction-roles", "Reaction Roles", p.reactionRolesCount > 0, formatCountDesc(p.reactionRolesCount, "message", "None configured")),
+            item("giveaways", "Giveaways", p.giveawaysCount > 0, formatCountDesc(p.giveawaysCount, "giveaway", "No active giveaways")),
+            item("economy", "Economy", p.economyEnabled, p.economyEnabled ? "Virtual economy active" : "Disabled"),
+            item("gambling", "Gambling", p.gamblingEnabled, p.gamblingEnabled ? "Casino games active" : "Disabled"),
+            item("birthdays", "Birthdays", p.birthdayEnabled, p.birthdayEnabled ? "Celebrations active" : "Disabled"),
+        ],
+    };
+}
+
+function buildUtilityCategory(p: FeatureMatrixBuildParams): FeatureMatrixCategory {
+    const title = "Utility & Tools";
+    const item = (id: string, name: string, enabled: boolean, desc: string): FeatureStatusItem =>
+        createFeature(p.guildId, title, id, name, enabled, desc);
+
+    return {
+        title,
+        features: [
+            item("custom-commands", "Custom Commands", p.customCmdsCount > 0, formatCountDesc(p.customCmdsCount, "command", "None created")),
+            item("tickets", "Support Tickets", p.ticketsEnabled, p.ticketsEnabled ? "Ticket system active" : "Not configured"),
+            item("member-counter", "Member Counter", p.memberCounterEnabled, p.memberCounterEnabled ? "Voice stats channel live" : "Disabled"),
+            item("reminders", "Reminders", p.remindersCount > 0, formatCountDesc(p.remindersCount, "reminder", "None scheduled")),
+            item("rss", "RSS Feeds", p.rssCount > 0, formatCountDesc(p.rssCount, "feed", "No feeds", "subscribed")),
+            item("temp-voice", "Temporary Voice", p.tempVoiceCount > 0, formatCountDesc(p.tempVoiceCount, "hub", "None configured", "active")),
+            item("media-only", "Media Only Channels", p.mediaOnlyCount > 0, formatCountDesc(p.mediaOnlyCount, "channel", "None restricted")),
+            item("invite-tracking", "Invite Tracking", p.inviteTrackingEnabled, p.inviteTrackingEnabled ? "Logging invite origins" : "Disabled"),
+        ],
+    };
+}
+
+function buildOnboardingCategory(p: FeatureMatrixBuildParams): FeatureMatrixCategory {
+    const title = "Onboarding";
+    const item = (id: string, name: string, enabled: boolean, desc: string): FeatureStatusItem =>
+        createFeature(p.guildId, title, id, name, enabled, desc);
+
+    return {
+        title,
+        features: [
+            item("welcome", "Welcome Messages", p.welcomeEnabled, p.welcomeEnabled ? "Greeting new members" : "Disabled"),
+            item("verification", "Verification Gate", p.verificationEnabled, p.verificationEnabled ? "Captcha gate active" : "Disabled"),
+            item("leave", "Leave Messages", p.leaveEnabled, p.leaveEnabled ? "Logging departing members" : "Disabled"),
+        ],
+    };
+}
+
 export function buildFeatureCategories(p: FeatureMatrixBuildParams): FeatureMatrixCategory[] {
     return [
-        {
-            title: "Moderation & Security",
-            features: [
-                {
-                    id: "message-filtering",
-                    name: "Automod Filtering",
-                    category: "Moderation & Security",
-                    href: `/dashboard/${p.guildId}/message-filtering`,
-                    enabled: p.mfEnabled,
-                    description: p.mfEnabled ? `${p.mfActiveCount.toString()} active rule${p.mfActiveCount === 1 ? "" : "s"}` : "Disabled",
-                },
-                {
-                    id: "anti-raid",
-                    name: "Anti-Raid",
-                    category: "Moderation & Security",
-                    href: `/dashboard/${p.guildId}/anti-raid`,
-                    enabled: p.antiRaidEnabled,
-                    description: p.antiRaidEnabled ? "Active protection" : "Disabled",
-                },
-                {
-                    id: "dynamic-slowmode",
-                    name: "Dynamic Slowmode",
-                    category: "Moderation & Security",
-                    href: `/dashboard/${p.guildId}/dynamic-slowmode`,
-                    enabled: p.dynSlowmodeEnabled,
-                    description: p.dynSlowmodeEnabled ? "Adaptive traffic rate" : "Disabled",
-                },
-                {
-                    id: "honeypot",
-                    name: "Honeypot Channel",
-                    category: "Moderation & Security",
-                    href: `/dashboard/${p.guildId}/honeypot`,
-                    enabled: p.honeypotEnabled,
-                    description: p.honeypotEnabled ? "Trap channel active" : "Not configured",
-                },
-                {
-                    id: "report",
-                    name: "User Reporting",
-                    category: "Moderation & Security",
-                    href: `/dashboard/${p.guildId}/report`,
-                    enabled: p.reportEnabled,
-                    description: p.reportEnabled ? "Reporting enabled" : "Disabled",
-                },
-                {
-                    id: "message-logging",
-                    name: "Message Logging",
-                    category: "Moderation & Security",
-                    href: `/dashboard/${p.guildId}/message-logging`,
-                    enabled: p.msgLoggingEnabled,
-                    description: p.msgLoggingEnabled ? "Logging edits & purges" : "Disabled",
-                },
-                {
-                    id: "moderation-dm",
-                    name: "Moderation DMs",
-                    category: "Moderation & Security",
-                    href: `/dashboard/${p.guildId}/moderation-dm`,
-                    enabled: p.modDmsEnabled,
-                    description: p.modDmsEnabled ? "DM notifications sent" : "Disabled",
-                },
-            ],
-        },
-        {
-            title: "Engagement & Fun",
-            features: [
-                {
-                    id: "leveling",
-                    name: "Leveling & XP",
-                    category: "Engagement & Fun",
-                    href: `/dashboard/${p.guildId}/leveling`,
-                    enabled: p.levelingEnabled,
-                    description: p.levelingEnabled ? "Tracking text XP" : "Disabled",
-                },
-                {
-                    id: "starboard",
-                    name: "Starboards",
-                    category: "Engagement & Fun",
-                    href: `/dashboard/${p.guildId}/starboard`,
-                    enabled: p.starboardsCount > 0,
-                    description: p.starboardsCount > 0 ? `${p.starboardsCount.toString()} board${p.starboardsCount === 1 ? "" : "s"} active` : "None configured",
-                },
-                {
-                    id: "reaction-roles",
-                    name: "Reaction Roles",
-                    category: "Engagement & Fun",
-                    href: `/dashboard/${p.guildId}/reaction-roles`,
-                    enabled: p.reactionRolesCount > 0,
-                    description: p.reactionRolesCount > 0 ? `${p.reactionRolesCount.toString()} message${p.reactionRolesCount === 1 ? "" : "s"}` : "None configured",
-                },
-                {
-                    id: "giveaways",
-                    name: "Giveaways",
-                    category: "Engagement & Fun",
-                    href: `/dashboard/${p.guildId}/giveaways`,
-                    enabled: p.giveawaysCount > 0,
-                    description: p.giveawaysCount > 0 ? `${p.giveawaysCount.toString()} giveaway${p.giveawaysCount === 1 ? "" : "s"}` : "No active giveaways",
-                },
-                {
-                    id: "economy",
-                    name: "Economy",
-                    category: "Engagement & Fun",
-                    href: `/dashboard/${p.guildId}/economy`,
-                    enabled: p.economyEnabled,
-                    description: p.economyEnabled ? "Virtual economy active" : "Disabled",
-                },
-                {
-                    id: "gambling",
-                    name: "Gambling",
-                    category: "Engagement & Fun",
-                    href: `/dashboard/${p.guildId}/gambling`,
-                    enabled: p.gamblingEnabled,
-                    description: p.gamblingEnabled ? "Casino games active" : "Disabled",
-                },
-                {
-                    id: "birthdays",
-                    name: "Birthdays",
-                    category: "Engagement & Fun",
-                    href: `/dashboard/${p.guildId}/birthdays`,
-                    enabled: p.birthdayEnabled,
-                    description: p.birthdayEnabled ? "Celebrations active" : "Disabled",
-                },
-            ],
-        },
-        {
-            title: "Utility & Tools",
-            features: [
-                {
-                    id: "custom-commands",
-                    name: "Custom Commands",
-                    category: "Utility & Tools",
-                    href: `/dashboard/${p.guildId}/custom-commands`,
-                    enabled: p.customCmdsCount > 0,
-                    description: p.customCmdsCount > 0 ? `${p.customCmdsCount.toString()} command${p.customCmdsCount === 1 ? "" : "s"}` : "None created",
-                },
-                {
-                    id: "tickets",
-                    name: "Support Tickets",
-                    category: "Utility & Tools",
-                    href: `/dashboard/${p.guildId}/tickets`,
-                    enabled: p.ticketsEnabled,
-                    description: p.ticketsEnabled ? "Ticket system active" : "Not configured",
-                },
-                {
-                    id: "member-counter",
-                    name: "Member Counter",
-                    category: "Utility & Tools",
-                    href: `/dashboard/${p.guildId}/member-counter`,
-                    enabled: p.memberCounterEnabled,
-                    description: p.memberCounterEnabled ? "Voice stats channel live" : "Disabled",
-                },
-                {
-                    id: "reminders",
-                    name: "Reminders",
-                    category: "Utility & Tools",
-                    href: `/dashboard/${p.guildId}/reminders`,
-                    enabled: p.remindersCount > 0,
-                    description: p.remindersCount > 0 ? `${p.remindersCount.toString()} reminder${p.remindersCount === 1 ? "" : "s"}` : "None scheduled",
-                },
-                {
-                    id: "rss",
-                    name: "RSS Feeds",
-                    category: "Utility & Tools",
-                    href: `/dashboard/${p.guildId}/rss`,
-                    enabled: p.rssCount > 0,
-                    description: p.rssCount > 0 ? `${p.rssCount.toString()} feed${p.rssCount === 1 ? "" : "s"} subscribed` : "No feeds",
-                },
-                {
-                    id: "temp-voice",
-                    name: "Temporary Voice",
-                    category: "Utility & Tools",
-                    href: `/dashboard/${p.guildId}/temp-voice`,
-                    enabled: p.tempVoiceCount > 0,
-                    description: p.tempVoiceCount > 0 ? `${p.tempVoiceCount.toString()} hub${p.tempVoiceCount === 1 ? "" : "s"} active` : "None configured",
-                },
-                {
-                    id: "media-only",
-                    name: "Media Only Channels",
-                    category: "Utility & Tools",
-                    href: `/dashboard/${p.guildId}/media-only`,
-                    enabled: p.mediaOnlyCount > 0,
-                    description: p.mediaOnlyCount > 0 ? `${p.mediaOnlyCount.toString()} channel${p.mediaOnlyCount === 1 ? "" : "s"}` : "None restricted",
-                },
-                {
-                    id: "invite-tracking",
-                    name: "Invite Tracking",
-                    category: "Utility & Tools",
-                    href: `/dashboard/${p.guildId}/invite-tracking`,
-                    enabled: p.inviteTrackingEnabled,
-                    description: p.inviteTrackingEnabled ? "Logging invite origins" : "Disabled",
-                },
-            ],
-        },
-        {
-            title: "Onboarding",
-            features: [
-                {
-                    id: "welcome",
-                    name: "Welcome Messages",
-                    category: "Onboarding",
-                    href: `/dashboard/${p.guildId}/welcome`,
-                    enabled: p.welcomeEnabled,
-                    description: p.welcomeEnabled ? "Greeting new members" : "Disabled",
-                },
-                {
-                    id: "verification",
-                    name: "Verification Gate",
-                    category: "Onboarding",
-                    href: `/dashboard/${p.guildId}/verification`,
-                    enabled: p.verificationEnabled,
-                    description: p.verificationEnabled ? "Captcha gate active" : "Disabled",
-                },
-                {
-                    id: "leave",
-                    name: "Leave Messages",
-                    category: "Onboarding",
-                    href: `/dashboard/${p.guildId}/leave`,
-                    enabled: p.leaveEnabled,
-                    description: p.leaveEnabled ? "Logging departing members" : "Disabled",
-                },
-            ],
-        },
+        buildModerationCategory(p),
+        buildEngagementCategory(p),
+        buildUtilityCategory(p),
+        buildOnboardingCategory(p),
     ];
 }
