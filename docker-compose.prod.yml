@@ -60,6 +60,7 @@ services:
     build: .
     image: ${BACKEND_IMAGE:-ghcr.io/oud-idk/mod-oud-backend:latest}
     restart: unless-stopped
+    pid: "host"
     logging: *default-logging
     depends_on:
       db:
@@ -85,6 +86,7 @@ services:
     build: .
     image: ${BACKEND_IMAGE:-ghcr.io/oud-idk/mod-oud-backend:latest}
     restart: unless-stopped
+    pid: "host"
     logging: *default-logging
     depends_on:
       db:
