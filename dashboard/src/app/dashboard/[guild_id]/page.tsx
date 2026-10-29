@@ -8,9 +8,11 @@ import {
     ActivityCharts,
     BotNotSetup,
     FeatureStatusMatrix,
+    NeedsAttentionPanel,
     RecentIncidentsFeed,
     TelemetryCards,
     getActiveRaid,
+    getAttentionItems,
     getGuildDetails,
     getGuildFeatureMatrix,
     getRecentIncidents,
@@ -35,13 +37,14 @@ async function getBotProcessStatus(): Promise<boolean> {
 export default async function DashboardOverviewPage({ params }: PageProps): Promise<JSX.Element> {
     const { guild_id } = await params;
 
-    const [status, guildDetails, telemetry, featureMatrix, incidents, activeRaid] = await Promise.all([
+    const [status, guildDetails, telemetry, featureMatrix, incidents, activeRaid, attention] = await Promise.all([
         getBotProcessStatus(),
         getGuildDetails(guild_id),
         getTelemetry(),
         getGuildFeatureMatrix(guild_id),
         getRecentIncidents(guild_id, 6),
         getActiveRaid(guild_id),
+        getAttentionItems(guild_id),
     ]);
 
     if (!guildDetails) {
@@ -106,6 +109,8 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
             </div>
 
             <ActiveRaidBanner raid={activeRaid} guildId={guild_id} />
+
+            <NeedsAttentionPanel items={attention} />
 
             <RecentIncidentsFeed incidents={incidents} guildId={guild_id} />
 

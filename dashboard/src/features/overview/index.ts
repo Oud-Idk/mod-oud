@@ -6,8 +6,10 @@ export { RecentIncidentsFeed } from "./components/dashboard/RecentIncidentsFeed"
 export { TelemetryCards } from "./components/dashboard/telemetry/TelemetryCards";
 export { ActivityCharts } from "./components/dashboard/charts/ActivityCharts";
 export { ActiveRaidBanner } from "./components/dashboard/ActiveRaidBanner";
+export { NeedsAttentionPanel } from "./components/dashboard/NeedsAttentionPanel";
 export {
     getActiveRaid,
+    getAttentionItems,
     getGuildDetails,
     getGuildFeatureMatrix,
     getGuildStats,

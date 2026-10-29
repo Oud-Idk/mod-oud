@@ -133,6 +133,27 @@ export interface ActiveRaid {
     startedAt: Date;
 }
 
+export const RawAttentionCountsSchema = z.object({
+    open_tickets: countField,
+    oldest_open_ticket_at: z.coerce.date().nullable(),
+    giveaways_ending: countField,
+    next_giveaway_end_at: z.coerce.date().nullable(),
+    temp_bans_expiring: countField,
+    next_unban_at: z.coerce.date().nullable(),
+    failing_reminders: countField,
+});
+
+export type RawAttentionCounts = z.infer<typeof RawAttentionCountsSchema>;
+
+export type AttentionKind = "OPEN_TICKETS" | "GIVEAWAYS_ENDING" | "TEMP_BANS_EXPIRING" | "FAILING_REMINDERS";
+
+export interface AttentionItem {
+    kind: AttentionKind;
+    title: string;
+    detail: string;
+    href: string;
+}
+
 export interface ActivityChartData {
     memberFlow: MemberFlowPoint[];
     moderation: ModerationActivityPoint[];
