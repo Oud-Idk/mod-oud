@@ -6,3 +6,4 @@ export { getAutomodBreakdown, getMemberFlow, getModerationActivity } from "./cha
 export { getActiveRaid } from "./raid";
 export { getAttentionItems } from "./attention";
 export { getWeeklyStats } from "./stats";
+export { getBotProcessStatus } from "./health";

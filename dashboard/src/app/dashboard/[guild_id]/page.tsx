@@ -1,23 +1,24 @@
 import Image from "next/image";
-import { config } from "@/config";
 import { Users } from "lucide-react";
-import { JSX } from "react";
-import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
+import { JSX, Suspense } from "react";
 import {
     ActiveRaidBanner,
     ActivityCharts,
+    ActivityChartsSkeleton,
     BotNotSetup,
+    BotStatusPill,
     FeatureStatusMatrix,
     NeedsAttentionPanel,
     RecentIncidentsFeed,
-    TelemetryCards,
+    StatusPillSkeleton,
+    TelemetryCardsSkeleton,
+    TelemetrySection,
     WeeklyStatCards,
     getActiveRaid,
     getAttentionItems,
     getGuildDetails,
     getGuildFeatureMatrix,
     getRecentIncidents,
-    getTelemetry,
     getWeeklyStats,
 } from "@/features/overview";
 
@@ -25,24 +26,13 @@ interface PageProps {
     params: Promise<{ guild_id: string }>;
 }
 
-async function getBotProcessStatus(): Promise<boolean> {
-    try {
-        const response = await fetch(`${config.backendInternalUrl}/health`, {
-            signal: AbortSignal.timeout(1000),
-        });
-        return response.ok;
-    } catch {
-        return false;
-    }
-}
-
 export default async function DashboardOverviewPage({ params }: PageProps): Promise<JSX.Element> {
     const { guild_id } = await params;
 
-    const [status, guildDetails, telemetry, featureMatrix, incidents, activeRaid, attention, weeklyStats] = await Promise.all([
-        getBotProcessStatus(),
+    // Only Postgres reads and the cached Discord lookup block the first paint. Calls to the
+    // bot process stream in behind Suspense, so a slow or offline bot cannot delay the page.
+    const [guildDetails, featureMatrix, incidents, activeRaid, attention, weeklyStats] = await Promise.all([
         getGuildDetails(guild_id),
-        getTelemetry(),
         getGuildFeatureMatrix(guild_id),
         getRecentIncidents(guild_id, 6),
         getActiveRaid(guild_id),
@@ -103,11 +93,9 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
-                    <ConnectionStatusPill
-                        status={status ? "CONNECTED" : "DISCONNECTED"}
-                        connectedText="Bot Online"
-                        disconnectedText="Bot Offline"
-                    />
+                    <Suspense fallback={<StatusPillSkeleton />}>
+                        <BotStatusPill />
+                    </Suspense>
                 </div>
             </div>
 
@@ -119,11 +107,15 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
 
             <RecentIncidentsFeed incidents={incidents} guildId={guild_id} />
 
-            <TelemetryCards telemetry={telemetry} />
+            <Suspense fallback={<TelemetryCardsSkeleton />}>
+                <TelemetrySection />
+            </Suspense>
 
             <FeatureStatusMatrix categories={featureMatrix} />
 
-            <ActivityCharts guildId={guild_id} />
+            <Suspense fallback={<ActivityChartsSkeleton />}>
+                <ActivityCharts guildId={guild_id} />
+            </Suspense>
         </div>
     );
 }
