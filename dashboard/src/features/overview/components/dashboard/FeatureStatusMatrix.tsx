@@ -1,6 +1,6 @@
 import { JSX } from "react";
 import Link from "next/link";
-import { FeatureMatrixCategory } from "../types";
+import { FeatureMatrixCategory } from "../../types";
 import { CheckCircle2, CircleDashed, ChevronRight } from "lucide-react";
 import Emphasis from "@/components/layout/Emphasis";
 import Footer from "@/components/layout/Footer";

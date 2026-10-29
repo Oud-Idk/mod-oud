@@ -1,7 +1,7 @@
 import { JSX } from "react";
 import Link from "next/link";
-import { RecentIncidentItem, IncidentKind } from "../types";
-import { ShieldAlert, ShieldX, Ticket, AlertOctagon, ChevronRight, Activity } from "lucide-react";
+import { RecentIncidentItem, IncidentKind } from "../../types";
+import { ShieldAlert, ShieldX, Ticket, AlertOctagon, ChevronRight } from "lucide-react";
 import Emphasis from "@/components/layout/Emphasis";
 
 interface RecentIncidentsFeedProps {

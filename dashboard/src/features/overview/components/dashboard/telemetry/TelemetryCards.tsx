@@ -1,6 +1,6 @@
 import { JSX } from "react";
 import { Database, HardDrive, Cpu, Radio } from "lucide-react";
-import { Card } from "@/features/overview/components/Card";
+import { Card } from "./Card";
 import { TelemetryReport } from "@/features/overview/types";
 import Emphasis from "@/components/layout/Emphasis";
 

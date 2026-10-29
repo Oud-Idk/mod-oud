@@ -2,7 +2,7 @@
 
 import { JSX } from "react";
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
-import { AutomodBreakdownItem } from "../types";
+import { AutomodBreakdownItem } from "../../../types";
 import { axisTick, chartColors, chartStyle, tooltipContentStyle } from "./chartTheme";
 
 export function AutomodBreakdownChart({ data }: { data: AutomodBreakdownItem[] }): JSX.Element {

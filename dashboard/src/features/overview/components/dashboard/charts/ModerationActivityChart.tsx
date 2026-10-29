@@ -2,10 +2,18 @@
 
 import { JSX } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, Tooltip, XAxis, YAxis } from "recharts";
-import { MemberFlowPoint } from "../types";
+import { MODERATION_SERIES, ModerationActivityPoint, ModerationSeries } from "../../../types";
 import { axisTick, chartColors, chartStyle, formatDay, tooltipContentStyle } from "./chartTheme";
 
-export function MemberFlowChart({ data }: { data: MemberFlowPoint[] }): JSX.Element {
+const SERIES_STYLE: Record<ModerationSeries, { name: string; color: string }> = {
+    bans: { name: "Bans", color: chartColors.danger },
+    kicks: { name: "Kicks", color: chartColors.warning },
+    mutes: { name: "Mutes", color: chartColors.info },
+    warns: { name: "Warns", color: chartColors.brand },
+    other: { name: "Other", color: chartColors.muted },
+};
+
+export function ModerationActivityChart({ data }: { data: ModerationActivityPoint[] }): JSX.Element {
     return (
         <BarChart responsive data={data} style={chartStyle} margin={{ top: 4, right: 4, bottom: 0, left: -24 }}>
             <CartesianGrid vertical={false} stroke={chartColors.grid} />
@@ -17,8 +25,15 @@ export function MemberFlowChart({ data }: { data: MemberFlowPoint[] }): JSX.Elem
                 labelFormatter={formatDay}
             />
             <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-            <Bar dataKey="joins" name="Joins" fill={chartColors.success} radius={[3, 3, 0, 0]} />
-            <Bar dataKey="leaves" name="Leaves" fill={chartColors.danger} radius={[3, 3, 0, 0]} />
+            {MODERATION_SERIES.map((series) => (
+                <Bar
+                    key={series}
+                    dataKey={series}
+                    name={SERIES_STYLE[series].name}
+                    stackId="actions"
+                    fill={SERIES_STYLE[series].color}
+                />
+            ))}
         </BarChart>
     );
 }

@@ -4,7 +4,7 @@ import { signIn } from "@/lib/auth";
 import { Button } from "@/components/ui/inputs/Button";
 import Image from "next/image";
 import Emphasis from "@/components/layout/Emphasis";
-import { Crab } from "@/features/overview/components/Crab";
+import { Crab } from "./Crab";
 import GplV3Logo from "@/components/ui/icons/GplV3Logo";
 import Link from "next/link";
 import GithubLogo from "@/components/ui/icons/GithubLogo";

@@ -1,8 +1,8 @@
 import React, { JSX } from "react";
 import Emphasis from "@/components/layout/Emphasis";
 import { cn } from "@/lib/cn";
-import { getAutomodBreakdown, getMemberFlow, getModerationActivity } from "../queries";
-import { MODERATION_SERIES } from "../types";
+import { getAutomodBreakdown, getMemberFlow, getModerationActivity } from "../../../queries/charts";
+import { MODERATION_SERIES } from "../../../types";
 import { MemberFlowChart } from "./MemberFlowChart";
 import { ModerationActivityChart } from "./ModerationActivityChart";
 import { AutomodBreakdownChart } from "./AutomodBreakdownChart";

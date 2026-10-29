@@ -1,4 +1,4 @@
-import { LoggedOutOverview } from "@/features/overview/components/LoggedOutOverview";
+import { LoggedOutOverview } from "@/features/overview";
 import { JSX } from "react";
 
 export default function OverviewPage(): JSX.Element {

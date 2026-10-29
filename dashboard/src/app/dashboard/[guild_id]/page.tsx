@@ -1,19 +1,19 @@
-import { BotNotSetup } from "@/features/overview/components/BotNotSetup";
 import Image from "next/image";
 import { config } from "@/config";
 import { Users } from "lucide-react";
+import { JSX } from "react";
+import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
 import {
+    ActivityCharts,
+    BotNotSetup,
+    FeatureStatusMatrix,
+    RecentIncidentsFeed,
+    TelemetryCards,
     getGuildDetails,
     getGuildFeatureMatrix,
     getRecentIncidents,
     getTelemetry,
-} from "@/features/overview/queries";
-import { JSX } from "react";
-import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
-import { TelemetryCards } from "@/features/overview/components/TelemetryCards";
-import { FeatureStatusMatrix } from "@/features/overview/components/FeatureStatusMatrix";
-import { RecentIncidentsFeed } from "@/features/overview/components/RecentIncidentsFeed";
-import { ActivityCharts } from "@/features/overview/components/ActivityCharts";
+} from "@/features/overview";
 
 interface PageProps {
     params: Promise<{ guild_id: string }>;
