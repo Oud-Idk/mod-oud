@@ -9,7 +9,7 @@ import {
     RawMemberFlowRowSchema,
     RawModerationActivityRow,
     RawModerationActivityRowSchema,
-} from "./types";
+} from "../types";
 
 // One row per UTC day, oldest first, ending today. Shared by the per-day queries so they
 // zero-fill identically; $2 is the window length in days.

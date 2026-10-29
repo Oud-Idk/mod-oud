@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { getGuildStats, getGuildDetails } from "./queries";
-import type { DiscordGuildDetails } from "./types";
+import { getGuildStats, getGuildDetails } from "./guild";
+import type { DiscordGuildDetails } from "../types";
 
 interface MockResponse {
     ok: boolean;
@@ -24,12 +24,12 @@ vi.mock("@/lib/db", () => ({
 vi.stubGlobal("fetch", mockFetch);
 
 // Row mapping, SQL shape, tenant scoping and the seven-day window live in
-// queries.integration.test.ts against a real database. What stays here is the
+// guild.integration.test.ts against a real database. What stays here is the
 // behaviour a real database will not produce on demand: no rows from a scalar
 // select, null counts, a schema rejection, a failing query, and the Discord
 // HTTP calls.
 
-describe("Overview Query Module", () => {
+describe("overview guild queries", () => {
     // Keep a snapshot of original env to prevent test pollution
     const originalEnv = process.env;
 
@@ -191,36 +191,6 @@ describe("Overview Query Module", () => {
 
             const result = await getGuildDetails("guild_123");
 
-            expect(result).toBeNull();
-        });
-    });
-    describe("getTelemetry", () => {
-        it("should fetch and parse valid telemetry data", async () => {
-            const telemetryData = {
-                database: { healthy: true, latency_ms: 0.25 },
-                redis: { healthy: true, latency_ms: 0.15 },
-                memory: { bot_mb: 50.5, ml_mb: 800.2 },
-                shard: { shard_id: 0, total_shards: 1, gateway_latency_ms: 120 },
-            };
-
-            mockFetch.mockResolvedValue({
-                ok: true,
-                json: () => Promise.resolve(telemetryData),
-            });
-
-            const { getTelemetry } = await import("./queries");
-            const result = await getTelemetry();
-            expect(result).toEqual(telemetryData);
-        });
-
-        it("should return null if backend fetch fails or response is not ok", async () => {
-            mockFetch.mockResolvedValue({
-                ok: false,
-                json: vi.fn<() => Promise<unknown>>().mockResolvedValue({}),
-            });
-
-            const { getTelemetry } = await import("./queries");
-            const result = await getTelemetry();
             expect(result).toBeNull();
         });
     });

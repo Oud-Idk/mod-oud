@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
-import { getGuildStats } from "./queries";
+import { getGuildStats } from "./guild";
 
 const GUILD_A = "123456789012345678";
 const GUILD_B = "987654321098765432";

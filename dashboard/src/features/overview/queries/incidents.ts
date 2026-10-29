@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { RecentIncidentItem } from "./types";
+import { RecentIncidentItem } from "../types";
 
 interface RawModLog {
     case_id: string;
