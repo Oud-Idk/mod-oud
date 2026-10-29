@@ -1,3 +1,4 @@
+export { getRecentIncidents } from "./incidents";
 import { db } from "@/lib/db";
 import { backendFetch } from "@/lib/backend";
 import { buildFeatureCategories } from "./featureMatrix";

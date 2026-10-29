@@ -57,6 +57,19 @@ export const TelemetryReportSchema = z.object({
     memory: MemoryTelemetrySchema,
     shard: ShardTelemetrySchema.nullable().optional(),
 });
+export type IncidentKind = "MODERATION" | "AUTOMOD" | "RAID" | "TICKET";
+
+export interface RecentIncidentItem {
+    id: string;
+    kind: IncidentKind;
+    title: string;
+    details: string;
+    actor: string | null;
+    target: string | null;
+    createdAt: Date;
+    href: string;
+}
+
 export interface FeatureStatusItem {
     id: string;
     name: string;
