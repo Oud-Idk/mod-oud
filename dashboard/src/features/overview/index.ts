@@ -7,12 +7,13 @@ export { TelemetryCards } from "./components/dashboard/telemetry/TelemetryCards"
 export { ActivityCharts } from "./components/dashboard/charts/ActivityCharts";
 export { ActiveRaidBanner } from "./components/dashboard/ActiveRaidBanner";
 export { NeedsAttentionPanel } from "./components/dashboard/NeedsAttentionPanel";
+export { WeeklyStatCards } from "./components/dashboard/WeeklyStatCards";
 export {
     getActiveRaid,
     getAttentionItems,
     getGuildDetails,
     getGuildFeatureMatrix,
-    getGuildStats,
     getRecentIncidents,
     getTelemetry,
+    getWeeklyStats,
 } from "./queries";

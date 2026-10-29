@@ -7,19 +7,29 @@ const countField = z
         return Number.isNaN(parsed) ? 0 : parsed;
     });
 
-export const RawGuildStatsSchema = z.object({
-    weekly_moderation: countField,
-    weekly_resolved: countField,
-    open_tickets: countField,
+export const RawWeeklyStatsSchema = z.object({
+    joins_current: countField,
+    joins_previous: countField,
+    leaves_current: countField,
+    leaves_previous: countField,
+    moderation_current: countField,
+    moderation_previous: countField,
+    automod_current: countField,
+    automod_previous: countField,
+    tickets_current: countField,
+    tickets_previous: countField,
 });
 
-export const GuildStatsSchema = z.object({
-    weeklyModerationCount: z.number().default(0),
-    weeklyResolvedTicketCount: z.number().default(0),
-    openTicketsCount: z.number().default(0),
-});
+export type RawWeeklyStats = z.infer<typeof RawWeeklyStatsSchema>;
 
-export type GuildStats = z.infer<typeof GuildStatsSchema>;
+export type StatCardId = "member_growth" | "moderation" | "automod" | "tickets";
+
+export interface StatCardItem {
+    id: StatCardId;
+    title: string;
+    value: string;
+    delta: string;
+}
 
 export const DiscordGuildDetailsSchema = z.object({
     id: z.string(),

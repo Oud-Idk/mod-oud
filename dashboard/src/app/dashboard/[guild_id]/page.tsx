@@ -11,12 +11,14 @@ import {
     NeedsAttentionPanel,
     RecentIncidentsFeed,
     TelemetryCards,
+    WeeklyStatCards,
     getActiveRaid,
     getAttentionItems,
     getGuildDetails,
     getGuildFeatureMatrix,
     getRecentIncidents,
     getTelemetry,
+    getWeeklyStats,
 } from "@/features/overview";
 
 interface PageProps {
@@ -37,7 +39,7 @@ async function getBotProcessStatus(): Promise<boolean> {
 export default async function DashboardOverviewPage({ params }: PageProps): Promise<JSX.Element> {
     const { guild_id } = await params;
 
-    const [status, guildDetails, telemetry, featureMatrix, incidents, activeRaid, attention] = await Promise.all([
+    const [status, guildDetails, telemetry, featureMatrix, incidents, activeRaid, attention, weeklyStats] = await Promise.all([
         getBotProcessStatus(),
         getGuildDetails(guild_id),
         getTelemetry(),
@@ -45,6 +47,7 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
         getRecentIncidents(guild_id, 6),
         getActiveRaid(guild_id),
         getAttentionItems(guild_id),
+        getWeeklyStats(guild_id),
     ]);
 
     if (!guildDetails) {
@@ -111,6 +114,8 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
             <ActiveRaidBanner raid={activeRaid} guildId={guild_id} />
 
             <NeedsAttentionPanel items={attention} />
+
+            <WeeklyStatCards stats={weeklyStats} />
 
             <RecentIncidentsFeed incidents={incidents} guildId={guild_id} />
 
