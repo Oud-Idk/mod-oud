@@ -28,7 +28,7 @@ export function FeatureStatusMatrix({ categories }: FeatureStatusMatrixProps): J
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-brand/10 text-brand border border-brand/20">
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full text-link border border-link/20">
                         {activeFeatures.toString()} / {totalFeatures.toString()} Active
                     </span>
                 </div>
@@ -76,10 +76,10 @@ export function FeatureStatusMatrix({ categories }: FeatureStatusMatrixProps): J
 
                                     <div className="flex items-center gap-2 shrink-0 ml-2">
                                         <span
-                                            className={`text-[10px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                                            className={`text-sm px-2 py-0.5 rounded-full tracking-wider ${
                                                 feature.enabled
-                                                    ? "bg-success/10 text-success border border-success/20"
-                                                    : "bg-muted text-muted-foreground border border-border"
+                                                    ? "text-success"
+                                                    : "text-muted-foreground"
                                             }`}
                                         >
                                             {feature.enabled ? "Active" : "Off"}

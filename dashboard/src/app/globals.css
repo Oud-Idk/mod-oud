@@ -92,23 +92,19 @@
     --color-focus-ring: var(--focus-ring);
 
     --color-brand: var(--brand);
-    --color-brand-hover: var(--brand-hover);
-    --color-brand-subtle: var(--brand-subtle);
-    --color-brand-foreground: var(--brand-foreground);
-
     --color-danger: var(--danger);
     --color-danger-hover: var(--danger-hover);
     --color-danger-subtle: var(--danger-subtle);
     --color-danger-border: var(--danger-border);
-
+    --color-danger-foreground: var(--danger-foreground);
     --color-success: var(--success);
     --color-success-subtle: var(--success-subtle);
-
     --color-warning: var(--warning);
     --color-warning-subtle: var(--warning-subtle);
-
     --color-info: var(--info);
     --color-info-subtle: var(--info-subtle);
+    --color-link: var(--link);
+    --color-link-hover: var(--link-hover);
 
     --shadow-dropdown: 0px 4px 20px -2px oklch(0 0 0 / 0.15);
 }
