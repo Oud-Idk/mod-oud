@@ -1,14 +1,14 @@
-import { CircleArrowUp, Gavel, Ticket, TicketX, Users } from "lucide-react";
+import { Gavel, Ticket, TicketX, Users } from "lucide-react";
 import { BotNotSetup } from "@/features/overview/components/BotNotSetup";
 import Image from "next/image";
 import { Card } from "@/features/overview/components/Card";
 import { config } from "@/config";
 
-import { getGuildDetails, getGuildStats, getTelemetry } from "@/features/overview/queries";
+import { getGuildDetails, getGuildFeatureMatrix, getGuildStats, getTelemetry } from "@/features/overview/queries";
 import { JSX } from "react";
 import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
-import { Crab } from "@/features/overview/components/Crab";
 import { TelemetryCards } from "@/features/overview/components/TelemetryCards";
+import { FeatureStatusMatrix } from "@/features/overview/components/FeatureStatusMatrix";
 
 interface PageProps {
     params: Promise<{ guild_id: string }>;
@@ -28,11 +28,12 @@ async function getBotProcessStatus(): Promise<boolean> {
 export default async function DashboardOverviewPage({ params }: PageProps): Promise<JSX.Element> {
     const { guild_id } = await params;
 
-    const [status, guildDetails, stats, telemetry] = await Promise.all([
+    const [status, guildDetails, stats, telemetry, featureMatrix] = await Promise.all([
         getBotProcessStatus(),
         getGuildDetails(guild_id),
         getGuildStats(guild_id),
         getTelemetry(),
+        getGuildFeatureMatrix(guild_id),
     ]);
 
     if (!guildDetails) {
@@ -88,6 +89,8 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
             </div>
 
             <TelemetryCards telemetry={telemetry} />
+
+            <FeatureStatusMatrix categories={featureMatrix} />
         </div>
     );
 }
