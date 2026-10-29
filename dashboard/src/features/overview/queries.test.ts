@@ -216,6 +216,7 @@ describe("Overview Query Module", () => {
         it("should return null if backend fetch fails or response is not ok", async () => {
             mockFetch.mockResolvedValue({
                 ok: false,
+                json: vi.fn<() => Promise<unknown>>().mockResolvedValue({}),
             });
 
             const { getTelemetry } = await import("./queries");

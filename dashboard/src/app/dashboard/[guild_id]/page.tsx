@@ -4,10 +4,11 @@ import Image from "next/image";
 import { Card } from "@/features/overview/components/Card";
 import { config } from "@/config";
 
-import { getGuildDetails, getGuildStats } from "@/features/overview/queries";
+import { getGuildDetails, getGuildStats, getTelemetry } from "@/features/overview/queries";
 import { JSX } from "react";
 import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
 import { Crab } from "@/features/overview/components/Crab";
+import { TelemetryCards } from "@/features/overview/components/TelemetryCards";
 
 interface PageProps {
     params: Promise<{ guild_id: string }>;
@@ -27,10 +28,11 @@ async function getBotProcessStatus(): Promise<boolean> {
 export default async function DashboardOverviewPage({ params }: PageProps): Promise<JSX.Element> {
     const { guild_id } = await params;
 
-    const [status, guildDetails, stats] = await Promise.all([
+    const [status, guildDetails, stats, telemetry] = await Promise.all([
         getBotProcessStatus(),
         getGuildDetails(guild_id),
-        getGuildStats(guild_id)
+        getGuildStats(guild_id),
+        getTelemetry(),
     ]);
 
     if (!guildDetails) {
@@ -90,6 +92,8 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
                 />
                 <Card icon={<Crab width={40}/>} title="Written In" main="Rust"/>
             </div>
+
+            <TelemetryCards telemetry={telemetry} />
         </div>
     );
 }
