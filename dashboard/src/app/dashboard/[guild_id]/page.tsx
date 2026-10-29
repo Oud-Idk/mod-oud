@@ -85,12 +85,6 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
                 <Card
                     icon={<Ticket/>} title="Open Tickets Count" main={openTicketsCount.toString()} footer="Now"
                 />
-                <Card
-                    icon={<CircleArrowUp/>}
-                    title="Features"
-                    main="Blazingly Fast"
-                />
-                <Card icon={<Crab width={40}/>} title="Written In" main="Rust"/>
             </div>
 
             <TelemetryCards telemetry={telemetry} />
