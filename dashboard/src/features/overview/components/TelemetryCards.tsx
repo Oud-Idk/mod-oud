@@ -2,6 +2,7 @@ import { JSX } from "react";
 import { Database, HardDrive, Cpu, Radio } from "lucide-react";
 import { Card } from "@/features/overview/components/Card";
 import { TelemetryReport } from "@/features/overview/types";
+import Emphasis from "@/components/layout/Emphasis";
 
 interface TelemetryCardsProps {
     telemetry: TelemetryReport | null;
@@ -30,7 +31,7 @@ export function TelemetryCards({ telemetry }: TelemetryCardsProps): JSX.Element 
 
     return (
         <div className="space-y-2">
-            <h2 className="text-lg font-semibold tracking-tight text-muted-foreground">System Telemetry</h2>
+            <Emphasis>System Telemetry</Emphasis>
             <div className="grid gap-4 md:grid-cols-4">
                 <Card
                     icon={<Database className={telemetry.database.healthy ? "text-success" : "text-danger"} />}

@@ -58,7 +58,7 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                     {iconUrl !== null && (
                         <Image
@@ -70,12 +70,12 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
                         />
                     )}
                     <div>
-                        <div className="flex flex-wrap items-center gap-2.5">
+                        <div className="flex flex-wrap items-center gap-4">
                             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
                                 {guildDetails.name}
                             </h1>
                             {memberCount !== null && (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-surface border border-border text-foreground">
+                                <span className="inline-flex items-center gap-2">
                                     <Users className="w-3.5 h-3.5 text-muted-foreground" />
                                     <span>{memberCount} members</span>
                                     {onlineCount !== null && (

@@ -2,6 +2,8 @@ import { JSX } from "react";
 import Link from "next/link";
 import { FeatureMatrixCategory } from "../types";
 import { CheckCircle2, CircleDashed, ChevronRight } from "lucide-react";
+import Emphasis from "@/components/layout/Emphasis";
+import Footer from "@/components/layout/Footer";
 
 interface FeatureStatusMatrixProps {
     categories: FeatureMatrixCategory[];
@@ -22,10 +24,10 @@ export function FeatureStatusMatrix({ categories }: FeatureStatusMatrixProps): J
         <div className="space-y-4 pt-2">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3">
                 <div>
-                    <h2 className="text-xl font-bold tracking-tight">Active Features & Modules</h2>
-                    <p className="text-sm text-muted-foreground">
+                    <Emphasis>Active Features & Modules</Emphasis>
+                    <Footer>
                         Live status of bot automation, protections, and engagement systems for this server.
-                    </p>
+                    </Footer>
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold px-2.5 py-1 rounded-full text-link border border-link/20">
@@ -68,9 +70,9 @@ export function FeatureStatusMatrix({ categories }: FeatureStatusMatrixProps): J
                                                     {feature.name}
                                                 </span>
                                             </div>
-                                            <p className="text-xs text-muted-foreground truncate">
+                                            <Footer>
                                                 {feature.description}
-                                            </p>
+                                            </Footer>
                                         </div>
                                     </div>
 
