@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { JSX } from "react";
 import { auth } from "@/lib/auth";
-import { LoggedInView } from "@/features/overview/components/LoggedInView";
+import { LoggedInView } from "@/features/overview";
 
 export default async function ServersPage(): Promise<JSX.Element> {
     const session = await auth();

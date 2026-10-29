@@ -6,6 +6,7 @@
   "mutate": [
     "src/features/**/types.ts",
     "src/features/**/queries.ts",
+    "src/features/**/queries/**/*.ts",
     "src/features/**/actions.ts",
     "src/features/reminders/calculations.ts",
     "src/features/rss/delivery.ts",

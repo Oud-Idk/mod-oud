@@ -1,4 +1,4 @@
-import { ServerButton } from "@/features/overview/components/ServerButton";
+import { ServerButton } from "./ServerButton";
 import { DiscordGuild } from "@/features/_shared/guild";
 import { JSX } from "react";
 

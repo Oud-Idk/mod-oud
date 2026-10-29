@@ -1,35 +1,19 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { getGuildStats, getGuildDetails } from "./queries";
-import type { DiscordGuildDetails } from "./types";
+import { getGuildDetails } from "./guild";
+import type { DiscordGuildDetails } from "../types";
 
 interface MockResponse {
     ok: boolean;
     json(): Promise<unknown>;
 }
 
-const mockQuery = vi.hoisted(() =>
-    vi.fn<(sql: string, params?: unknown[]) => Promise<{ rows?: unknown[] }>>()
-);
-
 const mockFetch = vi.hoisted(() =>
     vi.fn<(url: string, init?: RequestInit) => Promise<MockResponse>>()
 );
 
-vi.mock("@/lib/db", () => ({
-    db: {
-        query: mockQuery,
-    },
-}));
-
 vi.stubGlobal("fetch", mockFetch);
 
-// Row mapping, SQL shape, tenant scoping and the seven-day window live in
-// queries.integration.test.ts against a real database. What stays here is the
-// behaviour a real database will not produce on demand: no rows from a scalar
-// select, null counts, a schema rejection, a failing query, and the Discord
-// HTTP calls.
-
-describe("Overview Query Module", () => {
+describe("overview guild queries", () => {
     // Keep a snapshot of original env to prevent test pollution
     const originalEnv = process.env;
 
@@ -42,64 +26,6 @@ describe("Overview Query Module", () => {
     afterEach(() => {
         process.env = originalEnv;
         vi.restoreAllMocks();
-    });
-
-    describe("getGuildStats", () => {
-        const defaults = {
-            weeklyModerationCount: 0,
-            weeklyResolvedTicketCount: 0,
-            openTicketsCount: 0,
-        };
-
-        it("should return default stats when the DB returns no rows", async () => {
-            // Scalar subselects always yield one row, so only a mock reaches this branch.
-            mockQuery.mockResolvedValue({ rows: [] });
-
-            const result = await getGuildStats("guild_123");
-
-            expect(result).toEqual(defaults);
-            expect(console.error).not.toHaveBeenCalled();
-        });
-
-        it("should treat null counts as zero", async () => {
-            mockQuery.mockResolvedValue({
-                rows: [
-                    {
-                        weekly_moderation: null,
-                        weekly_resolved: "1",
-                        open_tickets: null,
-                    },
-                ],
-            });
-
-            const result = await getGuildStats("guild_123");
-
-            expect(result).toEqual({
-                weeklyModerationCount: 0,
-                weeklyResolvedTicketCount: 1,
-                openTicketsCount: 0,
-            });
-        });
-
-        it("should return default stats if the row does not match schema", async () => {
-            mockQuery.mockResolvedValue({
-                rows: ["not an object"],
-            });
-
-            const result = await getGuildStats("guild_123");
-
-            expect(result).toEqual(defaults);
-            // A throw further down logs a different message, so this pins the rejection path.
-        });
-
-        it("should return default stats when the query throws", async () => {
-            const err = new Error("spicy made direct eye contact with my avatar during screen share");
-            mockQuery.mockRejectedValue(err);
-
-            const result = await getGuildStats("guild_123");
-
-            expect(result).toEqual(defaults);
-        });
     });
 
     describe("getGuildDetails", () => {

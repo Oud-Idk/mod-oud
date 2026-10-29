@@ -1,95 +1,121 @@
-import { CircleArrowUp, Gavel, Ticket, TicketX, Users } from "lucide-react";
-import { BotNotSetup } from "@/features/overview/components/BotNotSetup";
 import Image from "next/image";
-import { Card } from "@/features/overview/components/Card";
-import { config } from "@/config";
-
-import { getGuildDetails, getGuildStats } from "@/features/overview/queries";
-import { JSX } from "react";
-import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
-import { Crab } from "@/features/overview/components/Crab";
+import { Users } from "lucide-react";
+import { JSX, Suspense } from "react";
+import {
+    ActiveRaidBanner,
+    ActivityCharts,
+    ActivityChartsSkeleton,
+    BotNotSetup,
+    BotStatusPill,
+    FeatureStatusMatrix,
+    NeedsAttentionPanel,
+    RecentIncidentsFeed,
+    StatusPillSkeleton,
+    TelemetryCardsSkeleton,
+    TelemetrySection,
+    WeeklyStatCards,
+    getActiveRaid,
+    getAttentionItems,
+    getGuildDetails,
+    getGuildFeatureMatrix,
+    getRecentIncidents,
+    getWeeklyStats,
+} from "@/features/overview";
 
 interface PageProps {
     params: Promise<{ guild_id: string }>;
 }
 
-async function getBotProcessStatus(): Promise<boolean> {
-    try {
-        const response = await fetch(`${config.backendInternalUrl}/health`, {
-            signal: AbortSignal.timeout(1000)
-        });
-        return response.ok;
-    } catch {
-        return false;
-    }
-}
-
 export default async function DashboardOverviewPage({ params }: PageProps): Promise<JSX.Element> {
     const { guild_id } = await params;
 
-    const [status, guildDetails, stats] = await Promise.all([
-        getBotProcessStatus(),
+    // Only Postgres reads and the cached Discord lookup block the first paint. Calls to the
+    // bot process stream in behind Suspense, so a slow or offline bot cannot delay the page.
+    const [guildDetails, featureMatrix, incidents, activeRaid, attention, weeklyStats] = await Promise.all([
         getGuildDetails(guild_id),
-        getGuildStats(guild_id)
+        getGuildFeatureMatrix(guild_id),
+        getRecentIncidents(guild_id, 6),
+        getActiveRaid(guild_id),
+        getAttentionItems(guild_id),
+        getWeeklyStats(guild_id),
     ]);
 
     if (!guildDetails) {
-        return <BotNotSetup permissions={process.env.PERMISSION ?? ""} guild_id={guild_id}/>;
+        return <BotNotSetup permissions={process.env.PERMISSION ?? ""} guild_id={guild_id} />;
     }
 
     const iconUrl = guildDetails.icon !== null
         ? `https://cdn.discordapp.com/icons/${guildDetails.id}/${guildDetails.icon}.png`
         : null;
 
-    const { weeklyModerationCount, weeklyResolvedTicketCount, openTicketsCount } = stats;
+    const memberCount = guildDetails.approximate_member_count !== undefined
+        ? guildDetails.approximate_member_count.toLocaleString()
+        : null;
+
+    const onlineCount = guildDetails.approximate_presence_count !== undefined
+        ? guildDetails.approximate_presence_count.toLocaleString()
+        : null;
 
     return (
-        <div className="space-y-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between">
-                <div>
-                    <div className="flex flex-row items-center gap-4">
-                        {(iconUrl !== null) && (
-                            <Image src={iconUrl} alt="Server Icon" width="50" height="50" className="rounded-full"/>
-                        )}
-                        <h1 className="text-3xl font-bold tracking-tight">{guildDetails.name}</h1>
+        <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    {iconUrl !== null && (
+                        <Image
+                            src={iconUrl}
+                            alt="Server Icon"
+                            width={56}
+                            height={56}
+                            className="rounded-2xl border border-border shrink-0 shadow-sm"
+                        />
+                    )}
+                    <div>
+                        <div className="flex flex-wrap items-center gap-4">
+                            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                                {guildDetails.name}
+                            </h1>
+                            {memberCount !== null && (
+                                <span className="inline-flex items-center gap-2">
+                                    <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <span>{memberCount} members</span>
+                                    {onlineCount !== null && (
+                                        <span className="text-muted-foreground font-normal">
+                                            ({onlineCount} online)
+                                        </span>
+                                    )}
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Server ID: <code className="font-mono text-[11px]">{guild_id}</code>
+                        </p>
                     </div>
-                    <p className="text-muted-foreground">
-                        Managing server ID <code>{guild_id}</code>
-                    </p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <ConnectionStatusPill status={status ? "CONNECTED" : "DISCONNECTED"} connectedText="Online!" disconnectedText="Offline (Oud is too distracted with `The SpicyWolf` right now)"/>
+
+                <div className="flex items-center gap-3 shrink-0">
+                    <Suspense fallback={<StatusPillSkeleton />}>
+                        <BotStatusPill />
+                    </Suspense>
                 </div>
             </div>
-            <div className="grid gap-4 md:grid-cols-4">
-                <Card
-                    icon={<Users/>}
-                    title="Total Members"
-                    main={guildDetails.approximate_member_count?.toString() ?? "X"}
-                    footer={`Online: ${guildDetails.approximate_presence_count?.toString() ?? "X"}`}
-                />
-                <Card
-                    icon={<Gavel/>}
-                    title="Moderation Actions Count"
-                    main={weeklyModerationCount.toString()}
-                    footer="This Week"
-                />
-                <Card
-                    icon={<TicketX/>}
-                    title="Resolved Tickets Count"
-                    main={weeklyResolvedTicketCount.toString()}
-                    footer="Lifetime"
-                />
-                <Card
-                    icon={<Ticket/>} title="Open Tickets Count" main={openTicketsCount.toString()} footer="Now"
-                />
-                <Card
-                    icon={<CircleArrowUp/>}
-                    title="Features"
-                    main="Blazingly Fast"
-                />
-                <Card icon={<Crab width={40}/>} title="Written In" main="Rust"/>
-            </div>
+
+            <ActiveRaidBanner raid={activeRaid} guildId={guild_id} />
+
+            <NeedsAttentionPanel items={attention} />
+
+            <WeeklyStatCards stats={weeklyStats} />
+
+            <RecentIncidentsFeed incidents={incidents} guildId={guild_id} />
+
+            <Suspense fallback={<TelemetryCardsSkeleton />}>
+                <TelemetrySection />
+            </Suspense>
+
+            <FeatureStatusMatrix categories={featureMatrix} />
+
+            <Suspense fallback={<ActivityChartsSkeleton />}>
+                <ActivityCharts guildId={guild_id} />
+            </Suspense>
         </div>
     );
 }

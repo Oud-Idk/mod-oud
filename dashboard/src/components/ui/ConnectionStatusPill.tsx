@@ -23,20 +23,17 @@ export function ConnectionStatusPill({
             className={cn(
                 "inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium border transition-all duration-300 select-none",
                 isConnected
-                    ? "bg-success-subtle border-success/30"
-                    : "bg-danger-subtle border-danger/30",
+                    ? "text-success border-success/30"
+                    : "text-danger border-danger/30",
                 className
             )}
         >
             <span className="relative flex h-2 w-2">
-                {isConnected && (
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
-                )}
                 <span
                     className={cn(
                         "relative inline-flex rounded-full h-2 w-2 transition-all",
                         isConnected
-                            ? "bg-success shadow-[0_0_8px_rgba(16,185,129,0.8)]"
+                            ? "bg-success"
                             : "bg-danger"
                     )}
                 />

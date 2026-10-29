@@ -1,8 +1,8 @@
 import { Session } from "next-auth";
 import { JSX } from "react";
 import { getGuildLists } from "@/features/_shared/servers";
-import { MutualServers } from "@/features/overview/components/MutualServers";
-import { InviteableServers } from "@/features/overview/components/InviteableServers";
+import { MutualServers } from "./MutualServers";
+import { InviteableServers } from "./InviteableServers";
 
 export async function LoggedInView({ session }: { session: Session | null }): Promise<JSX.Element> {
     const { mutualGuilds, inviteableGuilds } = session?.accessToken !== undefined

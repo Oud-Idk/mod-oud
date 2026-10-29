@@ -1,90 +1,48 @@
 import { describe, expect, it } from "vitest";
 import {
     DiscordGuildDetailsSchema,
-    GuildStatsSchema,
-    RawGuildStatsSchema,
+    RawWeeklyStatsSchema,
 } from "./types";
 
-describe("overview types", () => {
-    describe("RawGuildStatsSchema", () => {
-        it("coerces numeric strings from COUNT(*) to numbers", () => {
-            const parsed = RawGuildStatsSchema.parse({
-                weekly_moderation: "2",
-                weekly_resolved: "1",
-                open_tickets: "3",
-            });
+const ZERO_ROW = {
+    joins_current: 0,
+    joins_previous: 0,
+    leaves_current: 0,
+    leaves_previous: 0,
+    moderation_current: 0,
+    moderation_previous: 0,
+    automod_current: 0,
+    automod_previous: 0,
+    tickets_current: 0,
+    tickets_previous: 0,
+};
 
-            expect(parsed).toEqual({
-                weekly_moderation: 2,
-                weekly_resolved: 1,
-                open_tickets: 3,
-            });
+describe("overview types", () => {
+    describe("RawWeeklyStatsSchema", () => {
+        it("coerces numeric strings from COUNT(*) to numbers", () => {
+            const parsed = RawWeeklyStatsSchema.parse({ ...ZERO_ROW, joins_current: "2", tickets_previous: "3" });
+
+            expect(parsed.joins_current).toBe(2);
+            expect(parsed.tickets_previous).toBe(3);
         });
 
-        it("treats null and undefined counts as zero", () => {
-            const parsed = RawGuildStatsSchema.parse({
-                weekly_moderation: null,
-                weekly_resolved: undefined,
-                open_tickets: null,
+        it("treats null and non-numeric counts as zero", () => {
+            const parsed = RawWeeklyStatsSchema.parse({
+                ...ZERO_ROW,
+                moderation_current: null,
+                automod_current: "not a number",
             });
 
-            expect(parsed).toEqual({
-                weekly_moderation: 0,
-                weekly_resolved: 0,
-                open_tickets: 0,
-            });
+            expect(parsed.moderation_current).toBe(0);
+            expect(parsed.automod_current).toBe(0);
         });
 
         it("rejects rows with missing keys", () => {
-            expect(RawGuildStatsSchema.safeParse({}).success).toBe(false);
-        });
-
-        it("treats non-numeric strings as zero", () => {
-            const parsed = RawGuildStatsSchema.parse({
-                weekly_moderation: "not a number",
-                weekly_resolved: "1",
-                open_tickets: "2",
-            });
-
-            expect(parsed.weekly_moderation).toBe(0);
+            expect(RawWeeklyStatsSchema.safeParse({}).success).toBe(false);
         });
 
         it("rejects rows that are not objects", () => {
-            expect(RawGuildStatsSchema.safeParse("not an object").success).toBe(false);
-        });
-    });
-
-    describe("GuildStatsSchema", () => {
-        it("defaults every count to zero", () => {
-            expect(GuildStatsSchema.parse({})).toEqual({
-                weeklyModerationCount: 0,
-                weeklyResolvedTicketCount: 0,
-                openTicketsCount: 0,
-            });
-        });
-
-        it("keeps provided counts", () => {
-            expect(
-                GuildStatsSchema.parse({
-                    weeklyModerationCount: 2,
-                    weeklyResolvedTicketCount: 1,
-                    openTicketsCount: 3,
-                })
-            ).toEqual({
-                weeklyModerationCount: 2,
-                weeklyResolvedTicketCount: 1,
-                openTicketsCount: 3,
-            });
-        });
-
-        it("rejects non-numeric counts", () => {
-            expect(
-                GuildStatsSchema.safeParse({
-                    weeklyModerationCount: "two",
-                    weeklyResolvedTicketCount: 1,
-                    openTicketsCount: 0,
-                }).success
-            ).toBe(false);
+            expect(RawWeeklyStatsSchema.safeParse("not an object").success).toBe(false);
         });
     });
 
