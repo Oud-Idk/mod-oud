@@ -1,5 +1,46 @@
 import { db } from "@/lib/db";
-import { RecentIncidentItem } from "../types";
+import { RaidEventDetailsSchema, RecentIncidentItem } from "../types";
+
+const RAID_ACTOR = "Anti-Raid Guard";
+
+interface DescribedRaidEvent {
+    title: string;
+    details: string;
+    actor: string;
+}
+
+/** Maps a `raid_event_logs` row to feed text, using whatever `details` the bot wrote for it. */
+export function describeRaidEvent(eventType: string, rawDetails: unknown): DescribedRaidEvent {
+    const parsed = RaidEventDetailsSchema.safeParse(rawDetails ?? {});
+    const details = parsed.success ? parsed.data : {};
+
+    switch (eventType) {
+        case "TRIGGERED": {
+            if (details.manual === true) {
+                const moderator = details.moderator ?? null;
+                return {
+                    title: "Raid mode started",
+                    details: moderator !== null ? `Started manually by @${moderator}` : "Started manually",
+                    actor: moderator ?? RAID_ACTOR,
+                };
+            }
+            const joins = details.message?.match(/Current joins in the past minute: (\d+)/)?.[1];
+            return {
+                title: "Raid detected",
+                details: joins !== undefined
+                    ? `${joins} joins in the last minute exceeded the threshold`
+                    : "Join rate exceeded the threshold",
+                actor: RAID_ACTOR,
+            };
+        }
+        case "RESOLVED":
+            return { title: "Raid resolved", details: "Raid mode ended", actor: RAID_ACTOR };
+        case "ACTION_APPLIED":
+            return { title: "Raid mitigation applied", details: "A mitigation action ran", actor: RAID_ACTOR };
+        default:
+            return { title: "Anti-Raid event", details: eventType, actor: RAID_ACTOR };
+    }
+}
 
 interface RawModLog {
     case_id: string;
@@ -133,12 +174,13 @@ export async function getRecentIncidents(guildId: string, limit = 6): Promise<Re
         }
 
         for (const row of raidRes.rows) {
+            const described = describeRaidEvent(row.event_type, row.details);
             items.push({
                 id: `raid-${row.id}`,
                 kind: "RAID",
-                title: `Anti-Raid ${row.event_type}`,
-                details: "Suspicious join velocity threshold exceeded",
-                actor: "Anti-Raid Guard",
+                title: described.title,
+                details: described.details,
+                actor: described.actor,
                 target: null,
                 createdAt: new Date(row.created_at),
                 href: `/dashboard/${guildId}/anti-raid`,

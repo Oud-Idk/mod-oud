@@ -67,6 +67,13 @@ export const TelemetryReportSchema = z.object({
     memory: MemoryTelemetrySchema,
     shard: ShardTelemetrySchema.nullable().optional(),
 });
+/** The `details` JSONB on `raid_event_logs`. Every key is optional because each event type writes a different shape. */
+export const RaidEventDetailsSchema = z.object({
+    message: z.string().optional(),
+    moderator: z.string().optional(),
+    manual: z.boolean().optional(),
+});
+
 export type IncidentKind = "MODERATION" | "AUTOMOD" | "RAID" | "TICKET";
 
 export interface RecentIncidentItem {
