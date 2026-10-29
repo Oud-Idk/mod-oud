@@ -104,11 +104,11 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
 
             <RecentIncidentsFeed incidents={incidents} guildId={guild_id} />
 
-            <ActivityCharts guildId={guild_id} />
-
             <TelemetryCards telemetry={telemetry} />
 
             <FeatureStatusMatrix categories={featureMatrix} />
+
+            <ActivityCharts guildId={guild_id} />
         </div>
     );
 }
