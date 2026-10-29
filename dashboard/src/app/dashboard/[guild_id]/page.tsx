@@ -4,11 +4,13 @@ import { Users } from "lucide-react";
 import { JSX } from "react";
 import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
 import {
+    ActiveRaidBanner,
     ActivityCharts,
     BotNotSetup,
     FeatureStatusMatrix,
     RecentIncidentsFeed,
     TelemetryCards,
+    getActiveRaid,
     getGuildDetails,
     getGuildFeatureMatrix,
     getRecentIncidents,
@@ -33,12 +35,13 @@ async function getBotProcessStatus(): Promise<boolean> {
 export default async function DashboardOverviewPage({ params }: PageProps): Promise<JSX.Element> {
     const { guild_id } = await params;
 
-    const [status, guildDetails, telemetry, featureMatrix, incidents] = await Promise.all([
+    const [status, guildDetails, telemetry, featureMatrix, incidents, activeRaid] = await Promise.all([
         getBotProcessStatus(),
         getGuildDetails(guild_id),
         getTelemetry(),
         getGuildFeatureMatrix(guild_id),
         getRecentIncidents(guild_id, 6),
+        getActiveRaid(guild_id),
     ]);
 
     if (!guildDetails) {
@@ -101,6 +104,8 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
                     />
                 </div>
             </div>
+
+            <ActiveRaidBanner raid={activeRaid} guildId={guild_id} />
 
             <RecentIncidentsFeed incidents={incidents} guildId={guild_id} />
 

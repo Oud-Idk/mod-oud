@@ -3,6 +3,7 @@ import Link from "next/link";
 import { RecentIncidentItem, IncidentKind } from "../../types";
 import { ShieldAlert, ShieldX, Ticket, AlertOctagon, ChevronRight } from "lucide-react";
 import Emphasis from "@/components/layout/Emphasis";
+import { formatRelativeTime } from "../../time";
 
 interface RecentIncidentsFeedProps {
     incidents: RecentIncidentItem[];
@@ -33,14 +34,6 @@ function getIncidentBadgeClass(kind: IncidentKind): string {
         case "TICKET":
             return "text-brand border-brand/20";
     }
-}
-
-function formatRelativeTime(date: Date): string {
-    const diff = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
-    if (diff < 60) return "just now";
-    if (diff < 3600) return `${Math.floor(diff / 60).toString()}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600).toString()}h ago`;
-    return `${Math.floor(diff / 86400).toString()}d ago`;
 }
 
 export function RecentIncidentsFeed({ incidents, guildId }: RecentIncidentsFeedProps): JSX.Element {

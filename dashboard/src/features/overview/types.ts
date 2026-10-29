@@ -125,6 +125,14 @@ export interface AutomodBreakdownItem {
     count: number;
 }
 
+export const RawActiveRaidRowSchema = z.object({
+    raid_start_time: z.coerce.date(),
+});
+
+export interface ActiveRaid {
+    startedAt: Date;
+}
+
 export interface ActivityChartData {
     memberFlow: MemberFlowPoint[];
     moderation: ModerationActivityPoint[];
