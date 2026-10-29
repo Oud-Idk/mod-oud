@@ -57,5 +57,19 @@ export const TelemetryReportSchema = z.object({
     memory: MemoryTelemetrySchema,
     shard: ShardTelemetrySchema.nullable().optional(),
 });
+export interface FeatureStatusItem {
+    id: string;
+    name: string;
+    category: "Moderation & Security" | "Engagement & Fun" | "Utility & Tools" | "Onboarding";
+    href: string;
+    enabled: boolean;
+    description: string;
+}
+
+export interface FeatureMatrixCategory {
+    title: string;
+    features: FeatureStatusItem[];
+}
+
 
 export type TelemetryReport = z.infer<typeof TelemetryReportSchema>;
