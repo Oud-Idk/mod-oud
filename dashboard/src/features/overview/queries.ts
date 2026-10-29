@@ -1,9 +1,12 @@
 import { db } from "@/lib/db";
+import { backendFetch } from "@/lib/backend";
 import {
     DiscordGuildDetails,
     DiscordGuildDetailsSchema,
     GuildStats,
     RawGuildStatsSchema,
+    TelemetryReport,
+    TelemetryReportSchema,
 } from "@/features/overview/types";
 
 const DEFAULT_STATS: GuildStats = {
@@ -78,6 +81,27 @@ export async function getGuildDetails(guildId: string): Promise<DiscordGuildDeta
         return result.data;
     } catch (error) {
         console.error("Failed to fetch guild details:", error);
+        return null;
+    }
+}
+
+export async function getTelemetry(): Promise<TelemetryReport | null> {
+    try {
+        const response = await backendFetch("/api/telemetry", {
+            signal: AbortSignal.timeout(2000),
+        });
+
+        if (!response.ok) return null;
+
+        const rawData: unknown = await response.json();
+        const parsed = TelemetryReportSchema.safeParse(rawData);
+        if (!parsed.success) {
+            console.error("Failed to parse telemetry data:", parsed.error);
+            return null;
+        }
+
+        return parsed.data;
+    } catch {
         return null;
     }
 }

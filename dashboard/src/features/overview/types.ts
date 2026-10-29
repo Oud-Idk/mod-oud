@@ -30,3 +30,32 @@ export const DiscordGuildDetailsSchema = z.object({
 });
 
 export type DiscordGuildDetails = z.infer<typeof DiscordGuildDetailsSchema>;
+export const DatabaseTelemetrySchema = z.object({
+    healthy: z.boolean(),
+    latency_ms: z.number().nullable().optional(),
+});
+
+export const RedisTelemetrySchema = z.object({
+    healthy: z.boolean(),
+    latency_ms: z.number().nullable().optional(),
+});
+
+export const MemoryTelemetrySchema = z.object({
+    bot_mb: z.number().nullable().optional(),
+    ml_mb: z.number().nullable().optional(),
+});
+
+export const ShardTelemetrySchema = z.object({
+    shard_id: z.number(),
+    total_shards: z.number(),
+    gateway_latency_ms: z.number().nullable().optional(),
+});
+
+export const TelemetryReportSchema = z.object({
+    database: DatabaseTelemetrySchema,
+    redis: RedisTelemetrySchema,
+    memory: MemoryTelemetrySchema,
+    shard: ShardTelemetrySchema.nullable().optional(),
+});
+
+export type TelemetryReport = z.infer<typeof TelemetryReportSchema>;

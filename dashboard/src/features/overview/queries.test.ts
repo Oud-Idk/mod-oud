@@ -194,4 +194,33 @@ describe("Overview Query Module", () => {
             expect(result).toBeNull();
         });
     });
+    describe("getTelemetry", () => {
+        it("should fetch and parse valid telemetry data", async () => {
+            const telemetryData = {
+                database: { healthy: true, latency_ms: 0.25 },
+                redis: { healthy: true, latency_ms: 0.15 },
+                memory: { bot_mb: 50.5, ml_mb: 800.2 },
+                shard: { shard_id: 0, total_shards: 1, gateway_latency_ms: 120 },
+            };
+
+            mockFetch.mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve(telemetryData),
+            });
+
+            const { getTelemetry } = await import("./queries");
+            const result = await getTelemetry();
+            expect(result).toEqual(telemetryData);
+        });
+
+        it("should return null if backend fetch fails or response is not ok", async () => {
+            mockFetch.mockResolvedValue({
+                ok: false,
+            });
+
+            const { getTelemetry } = await import("./queries");
+            const result = await getTelemetry();
+            expect(result).toBeNull();
+        });
+    });
 });
