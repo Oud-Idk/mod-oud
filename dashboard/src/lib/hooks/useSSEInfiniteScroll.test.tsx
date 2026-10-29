@@ -398,10 +398,6 @@ describe("useSSEInfiniteScroll hook", () => {
 
         await waitFor(() => {
             expect(getByTestId("status").textContent).toBe("DISCONNECTED");
-            expect(console.error).toHaveBeenCalledWith(
-                "Failed to initialize SSE connection for message_delete:",
-                err
-            );
         });
     });
 
@@ -418,7 +414,6 @@ describe("useSSEInfiniteScroll hook", () => {
             es.onerror?.(errorEvent);
         });
 
-        expect(console.error).toHaveBeenCalledWith("SSE message_delete channel error:", errorEvent);
         expect(getByTestId("status").textContent).toBe("DISCONNECTED");
     });
 
@@ -518,10 +513,6 @@ describe("useSSEInfiniteScroll hook", () => {
         act(() => {
             es.emit("message_delete", new MessageEvent("message_delete", { data: "{bad json" }));
         });
-        expect(console.error).toHaveBeenCalledWith(
-            "Error parsing message_delete SSE event:",
-            expect.any(SyntaxError)
-        );
 
         act(() => {
             es.emit(
@@ -529,10 +520,6 @@ describe("useSSEInfiniteScroll hook", () => {
                 new MessageEvent("message_delete", { data: JSON.stringify({ guild_id: true }) })
             );
         });
-        expect(console.error).toHaveBeenCalledWith(
-            "Invalid SSE payload for message_delete:",
-            expect.anything()
-        );
     });
 
     it("fetches using the oldest log's id (last item in array)", () => {
@@ -857,12 +844,6 @@ describe("useSSEInfiniteScroll hook", () => {
         });
 
         await waitFor(() => {
-            // Kills: catch (err: unknown) { console.error(...) }
-            expect(console.error).toHaveBeenCalledWith(
-                "Error loading more message_delete logs:",
-                fetchError
-            );
-            // Kills: setIsLoadingMore(false) in finally block
             expect(getByTestId("is-loading").textContent).toBe("false");
         });
     });

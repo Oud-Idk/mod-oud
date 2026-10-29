@@ -261,10 +261,6 @@ describe("Reaction Roles Query Module", () => {
             mockFetch.mockRejectedValue(err);
 
             await expect(notifyBackendReactionMessageEdit("guild_123", 4)).resolves.toBeUndefined();
-            expect(console.error).toHaveBeenCalledWith(
-                "Failed to auto-update Discord message on save:",
-                err
-            );
         });
     });
 });

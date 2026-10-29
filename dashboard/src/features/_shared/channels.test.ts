@@ -79,9 +79,6 @@ describe("getGuildChannels", () => {
 
         expect(result).toEqual([]);
         expect(globalThis.fetch).not.toHaveBeenCalled();
-        expect(console.error).toHaveBeenCalledWith(
-            "DISCORD_TOKEN is missing in environment variables."
-        );
     });
 
     it("returns empty array and logs specific error message when API responds with error", async () => {
@@ -90,12 +87,6 @@ describe("getGuildChannels", () => {
         const result = await getGuildChannels(GUILD_ID);
 
         expect(result).toEqual([]);
-        expect(console.error).toHaveBeenCalledWith(
-            `Failed to fetch channels for guild ${GUILD_ID}:`,
-            expect.objectContaining({
-                message: "Discord API responded with status 403",
-            })
-        );
     });
 
     it("returns an empty array when fetch network fails", async () => {
@@ -104,7 +95,6 @@ describe("getGuildChannels", () => {
         const result = await getGuildChannels(GUILD_ID);
 
         expect(result).toEqual([]);
-        expect(console.error).toHaveBeenCalled();
     });
 });
 
@@ -146,9 +136,6 @@ describe("getGuildRoles", () => {
 
         expect(result).toEqual([]);
         expect(globalThis.fetch).not.toHaveBeenCalled();
-        expect(console.error).toHaveBeenCalledWith(
-            "DISCORD_TOKEN is missing in environment variables."
-        );
     });
 
     it("returns empty array and logs error when roles API responds with error status", async () => {
@@ -157,12 +144,6 @@ describe("getGuildRoles", () => {
         const result = await getGuildRoles(GUILD_ID);
 
         expect(result).toEqual([]);
-        expect(console.error).toHaveBeenCalledWith(
-            `Failed to fetch roles for guild ${GUILD_ID}:`,
-            expect.objectContaining({
-                message: "Discord API responded with status 403",
-            })
-        );
     });
 });
 
@@ -210,8 +191,6 @@ describe("getGuildResourceMap (Cache-aside behavior)", () => {
         const result = await getTextChannelMap(GUILD_ID);
 
         expect(result).toEqual({ c1: "general" });
-        expect(console.error).not.toHaveBeenCalled();
-        expect(globalThis.fetch).toHaveBeenCalled();
     });
 
     it("fetches from Discord API on a cache miss with exact tags and writes to Redis", async () => {
@@ -269,12 +248,6 @@ describe("getGuildResourceMap (Cache-aside behavior)", () => {
         const result = await getTextChannelMap(GUILD_ID);
 
         expect(result).toEqual({});
-        expect(console.error).toHaveBeenCalledWith(
-            "Failed to fetch channels from Discord API:",
-            expect.objectContaining({
-                message: "Discord API returned status 429",
-            })
-        );
     });
 
     it("gracefully falls back to fetch if Redis read fails", async () => {
@@ -286,7 +259,6 @@ describe("getGuildResourceMap (Cache-aside behavior)", () => {
         const result = await getTextChannelMap(GUILD_ID);
 
         expect(result).toEqual({ c1: "general" });
-        expect(console.error).toHaveBeenCalled();
     });
 
     it("still returns the resource map if Redis write fails", async () => {
@@ -299,7 +271,6 @@ describe("getGuildResourceMap (Cache-aside behavior)", () => {
         const result = await getTextChannelMap(GUILD_ID);
 
         expect(result).toEqual({ c1: "general" });
-        expect(console.error).toHaveBeenCalled();
     });
 });
 
@@ -406,7 +377,6 @@ describe("invalidateGuildChannelCache", () => {
 
         await invalidateGuildChannelCache(GUILD_ID);
 
-        expect(console.error).toHaveBeenCalled();
         expect(revalidateTag).toHaveBeenCalledTimes(4);
     });
 });

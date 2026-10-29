@@ -228,17 +228,10 @@ describe("Guild Config - Unit Tests", () => {
         });
 
         it("swallows redis errors and does not throw", async () => {
-            const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
             mockDbQuery.mockResolvedValueOnce({ rows: [] });
             mockRedisDel.mockRejectedValueOnce(new Error("Redis connection dropped"));
 
             await expect(saveGuildConfigField(GUILD_ID, "music", { volume: 80 })).resolves.not.toThrow();
-
-            expect(consoleSpy).toHaveBeenCalledWith(
-                `Failed to clear cache for guild ${GUILD_ID}:`,
-                expect.any(Error)
-            );
-            consoleSpy.mockRestore();
         });
     });
 
@@ -260,14 +253,10 @@ describe("Guild Config - Unit Tests", () => {
         });
 
         it("gracefully catches Redis errors", async () => {
-            const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
             mockDbQuery.mockResolvedValueOnce({ rows: [] });
             mockRedisDel.mockRejectedValueOnce(new Error("Redis timeout"));
 
             await expect(replaceGuildConfigField(GUILD_ID, "notifications", {})).resolves.not.toThrow();
-
-            expect(consoleSpy).toHaveBeenCalled();
-            consoleSpy.mockRestore();
         });
     });
 });

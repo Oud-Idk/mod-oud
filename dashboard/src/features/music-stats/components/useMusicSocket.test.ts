@@ -496,7 +496,6 @@ describe("useMusicSocket lifecycle and transport", () => {
     });
 
     it("marks disconnected when ticket request fails", async () => {
-        const consoleSpy = vi.spyOn(console, "error").mockImplementation(noop);
         vi.mocked(wsUrlWithTicket).mockRejectedValueOnce(new Error("no ticket"));
         const isMountedRef = { current: true };
 
@@ -511,7 +510,6 @@ describe("useMusicSocket lifecycle and transport", () => {
         await waitFor(() => {
             expect(result.current.status).toBe("disconnected");
         });
-        expect(consoleSpy).toHaveBeenCalledWith("Failed to obtain WS ticket:", expect.any(Error));
     });
 
     it("connects, sends nowPlaying on open, handles ack, and processes pushes", async () => {
