@@ -77,22 +77,14 @@ impl fmt::Display for PingDisplayReport<'_> {
         write!(
             f,
             "Pong!\n\
-             {db}\n\
-             {redis}\n\
+             {db_display}\n\
+             {redis_display}\n\
              Instance: {instance}/{total}\n\
-             {members}\n\
+             {member_display}\n\
              Shard Memory Usage: {shard_memory}\n\
              ML Memory Usage: {ml_memory}\n\
-             Gateway Latency: {latency}\n\
+             Gateway Latency: {latency_display}\n\
              Written in Rust <:OwoFerris:1463892004885758014>",
-            db = db_display,
-            redis = redis_display,
-            instance = instance,
-            total = total,
-            members = member_display,
-            shard_memory = shard_memory,
-            ml_memory = ml_memory,
-            latency = latency_display,
         )
     }
 }

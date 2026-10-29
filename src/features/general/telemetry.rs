@@ -32,7 +32,7 @@ pub struct MemoryTelemetry {
 }
 
 /// Holds Discord gateway shard metadata and latency.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ShardTelemetry {
     /// Zero-based identifier of the current shard.
     pub shard_id: u32,
@@ -87,6 +87,7 @@ fn get_target_process_memory(sys: &System, name: &str) -> Option<f64> {
 }
 
 /// Probes the system memory usage for both the bot shard and ML inference.
+#[must_use]
 pub fn probe_memory() -> MemoryTelemetry {
     let mut sys = System::new();
     sys.refresh_processes(ProcessesToUpdate::All, true);
