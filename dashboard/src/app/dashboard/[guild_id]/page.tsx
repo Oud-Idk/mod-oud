@@ -13,6 +13,7 @@ import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
 import { TelemetryCards } from "@/features/overview/components/TelemetryCards";
 import { FeatureStatusMatrix } from "@/features/overview/components/FeatureStatusMatrix";
 import { RecentIncidentsFeed } from "@/features/overview/components/RecentIncidentsFeed";
+import { ActivityCharts } from "@/features/overview/components/ActivityCharts";
 
 interface PageProps {
     params: Promise<{ guild_id: string }>;
@@ -102,6 +103,8 @@ export default async function DashboardOverviewPage({ params }: PageProps): Prom
             </div>
 
             <RecentIncidentsFeed incidents={incidents} guildId={guild_id} />
+
+            <ActivityCharts guildId={guild_id} />
 
             <TelemetryCards telemetry={telemetry} />
 

@@ -86,3 +86,47 @@ export interface FeatureMatrixCategory {
 
 
 export type TelemetryReport = z.infer<typeof TelemetryReportSchema>;
+
+const dayKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+export const RawMemberFlowRowSchema = z.object({
+    day: dayKey,
+    joins: countField,
+    leaves: countField,
+});
+
+export const RawModerationActivityRowSchema = z.object({
+    day: dayKey,
+    action_type: z.string().nullable(),
+    count: countField,
+});
+
+export const RawAutomodBreakdownRowSchema = z.object({
+    rule_type: z.string(),
+    count: countField,
+});
+
+export type RawModerationActivityRow = z.infer<typeof RawModerationActivityRowSchema>;
+
+/** `day` is a UTC calendar date, `YYYY-MM-DD`. */
+export interface MemberFlowPoint {
+    day: string;
+    joins: number;
+    leaves: number;
+}
+
+export const MODERATION_SERIES = ["bans", "kicks", "mutes", "warns", "other"] as const;
+export type ModerationSeries = (typeof MODERATION_SERIES)[number];
+
+export type ModerationActivityPoint = { day: string } & Record<ModerationSeries, number>;
+
+export interface AutomodBreakdownItem {
+    rule: string;
+    count: number;
+}
+
+export interface ActivityChartData {
+    memberFlow: MemberFlowPoint[];
+    moderation: ModerationActivityPoint[];
+    automod: AutomodBreakdownItem[];
+}
