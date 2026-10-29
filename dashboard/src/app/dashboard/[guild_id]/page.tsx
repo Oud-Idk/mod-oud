@@ -1,14 +1,18 @@
-import { Gavel, Ticket, TicketX, Users } from "lucide-react";
 import { BotNotSetup } from "@/features/overview/components/BotNotSetup";
 import Image from "next/image";
-import { Card } from "@/features/overview/components/Card";
 import { config } from "@/config";
-
-import { getGuildDetails, getGuildFeatureMatrix, getGuildStats, getTelemetry } from "@/features/overview/queries";
+import { Users } from "lucide-react";
+import {
+    getGuildDetails,
+    getGuildFeatureMatrix,
+    getRecentIncidents,
+    getTelemetry,
+} from "@/features/overview/queries";
 import { JSX } from "react";
 import { ConnectionStatusPill } from "@/components/ui/ConnectionStatusPill";
 import { TelemetryCards } from "@/features/overview/components/TelemetryCards";
 import { FeatureStatusMatrix } from "@/features/overview/components/FeatureStatusMatrix";
+import { RecentIncidentsFeed } from "@/features/overview/components/RecentIncidentsFeed";
 
 interface PageProps {
     params: Promise<{ guild_id: string }>;
@@ -17,7 +21,7 @@ interface PageProps {
 async function getBotProcessStatus(): Promise<boolean> {
     try {
         const response = await fetch(`${config.backendInternalUrl}/health`, {
-            signal: AbortSignal.timeout(1000)
+            signal: AbortSignal.timeout(1000),
         });
         return response.ok;
     } catch {
@@ -28,65 +32,76 @@ async function getBotProcessStatus(): Promise<boolean> {
 export default async function DashboardOverviewPage({ params }: PageProps): Promise<JSX.Element> {
     const { guild_id } = await params;
 
-    const [status, guildDetails, stats, telemetry, featureMatrix] = await Promise.all([
+    const [status, guildDetails, telemetry, featureMatrix, incidents] = await Promise.all([
         getBotProcessStatus(),
         getGuildDetails(guild_id),
-        getGuildStats(guild_id),
         getTelemetry(),
         getGuildFeatureMatrix(guild_id),
+        getRecentIncidents(guild_id, 6),
     ]);
 
     if (!guildDetails) {
-        return <BotNotSetup permissions={process.env.PERMISSION ?? ""} guild_id={guild_id}/>;
+        return <BotNotSetup permissions={process.env.PERMISSION ?? ""} guild_id={guild_id} />;
     }
 
     const iconUrl = guildDetails.icon !== null
         ? `https://cdn.discordapp.com/icons/${guildDetails.id}/${guildDetails.icon}.png`
         : null;
 
-    const { weeklyModerationCount, weeklyResolvedTicketCount, openTicketsCount } = stats;
+    const memberCount = guildDetails.approximate_member_count !== undefined
+        ? guildDetails.approximate_member_count.toLocaleString()
+        : null;
+
+    const onlineCount = guildDetails.approximate_presence_count !== undefined
+        ? guildDetails.approximate_presence_count.toLocaleString()
+        : null;
 
     return (
-        <div className="space-y-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between">
-                <div>
-                    <div className="flex flex-row items-center gap-4">
-                        {(iconUrl !== null) && (
-                            <Image src={iconUrl} alt="Server Icon" width="50" height="50" className="rounded-full"/>
-                        )}
-                        <h1 className="text-3xl font-bold tracking-tight">{guildDetails.name}</h1>
+        <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4">
+                <div className="flex items-center gap-4">
+                    {iconUrl !== null && (
+                        <Image
+                            src={iconUrl}
+                            alt="Server Icon"
+                            width={56}
+                            height={56}
+                            className="rounded-2xl border border-border shrink-0 shadow-sm"
+                        />
+                    )}
+                    <div>
+                        <div className="flex flex-wrap items-center gap-2.5">
+                            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                                {guildDetails.name}
+                            </h1>
+                            {memberCount !== null && (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-surface border border-border text-foreground">
+                                    <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <span>{memberCount} members</span>
+                                    {onlineCount !== null && (
+                                        <span className="text-muted-foreground font-normal">
+                                            ({onlineCount} online)
+                                        </span>
+                                    )}
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Server ID: <code className="font-mono text-[11px]">{guild_id}</code>
+                        </p>
                     </div>
-                    <p className="text-muted-foreground">
-                        Managing server ID <code>{guild_id}</code>
-                    </p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <ConnectionStatusPill status={status ? "CONNECTED" : "DISCONNECTED"} connectedText="Online!" disconnectedText="Offline (Oud is too distracted with `The SpicyWolf` right now)"/>
+
+                <div className="flex items-center gap-3 shrink-0">
+                    <ConnectionStatusPill
+                        status={status ? "CONNECTED" : "DISCONNECTED"}
+                        connectedText="Bot Online"
+                        disconnectedText="Bot Offline"
+                    />
                 </div>
             </div>
-            <div className="grid gap-4 md:grid-cols-4">
-                <Card
-                    icon={<Users/>}
-                    title="Total Members"
-                    main={guildDetails.approximate_member_count?.toString() ?? "X"}
-                    footer={`Online: ${guildDetails.approximate_presence_count?.toString() ?? "X"}`}
-                />
-                <Card
-                    icon={<Gavel/>}
-                    title="Moderation Actions Count"
-                    main={weeklyModerationCount.toString()}
-                    footer="This Week"
-                />
-                <Card
-                    icon={<TicketX/>}
-                    title="Resolved Tickets Count"
-                    main={weeklyResolvedTicketCount.toString()}
-                    footer="Lifetime"
-                />
-                <Card
-                    icon={<Ticket/>} title="Open Tickets Count" main={openTicketsCount.toString()} footer="Now"
-                />
-            </div>
+
+            <RecentIncidentsFeed incidents={incidents} guildId={guild_id} />
 
             <TelemetryCards telemetry={telemetry} />
 
