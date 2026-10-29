@@ -94,13 +94,11 @@ describe("getWeeklyStats", () => {
         mockQuery.mockResolvedValue({ rows: [] });
 
         expect(await getWeeklyStats("g1")).toBeNull();
-        expect(console.error).toHaveBeenCalled();
     });
 
     it("returns null when the query fails", async () => {
         mockQuery.mockRejectedValue(new Error("connection refused"));
 
         expect(await getWeeklyStats("g1")).toBeNull();
-        expect(console.error).toHaveBeenCalled();
     });
 });

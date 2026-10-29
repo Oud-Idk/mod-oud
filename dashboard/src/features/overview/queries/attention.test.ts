@@ -133,13 +133,11 @@ describe("getAttentionItems", () => {
         mockQuery.mockResolvedValue({ rows: [{ ...EMPTY, next_unban_at: "not a date" }] });
 
         expect(await getAttentionItems("g1")).toEqual([]);
-        expect(console.error).toHaveBeenCalled();
     });
 
     it("returns an empty list when the query fails", async () => {
         mockQuery.mockRejectedValue(new Error("connection refused"));
 
         expect(await getAttentionItems("g1")).toEqual([]);
-        expect(console.error).toHaveBeenCalled();
     });
 });

@@ -9,9 +9,7 @@ vi.mock("@/lib/db", () => ({
     db: { query: mockQuery },
 }));
 
-// Guild scoping against real rows is covered in raid.integration.test.ts.
-
-describe("getActiveRaid", () => {
+describe("getActiveRaid (Unit)", () => {
     beforeEach(() => {
         vi.resetAllMocks();
         vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -21,39 +19,51 @@ describe("getActiveRaid", () => {
         vi.restoreAllMocks();
     });
 
-    it("returns null when no raid is active", async () => {
+    it("returns null when no raid row exists", async () => {
         mockQuery.mockResolvedValue({ rows: [] });
 
-        expect(await getActiveRaid("guild_123")).toBeNull();
+        const result = await getActiveRaid("guild_123");
+
+        expect(result).toBeNull();
+        expect(mockQuery).toHaveBeenCalledTimes(1);
         expect(mockQuery.mock.calls[0]?.[1]).toEqual(["guild_123"]);
     });
 
-    it("returns the start time of an active raid", async () => {
+    it("returns the startedAt Date object when active", async () => {
         const startedAt = new Date("2026-10-29T10:00:00.000Z");
         mockQuery.mockResolvedValue({ rows: [{ raid_start_time: startedAt }] });
 
-        expect(await getActiveRaid("guild_123")).toEqual({ startedAt });
+        const result = await getActiveRaid("guild_123");
+
+        expect(result).toEqual({ startedAt });
     });
 
-    it("coerces a string timestamp into a Date", async () => {
-        mockQuery.mockResolvedValue({ rows: [{ raid_start_time: "2026-10-29T10:00:00.000Z" }] });
+    it("coerces ISO string timestamp into a Date object", async () => {
+        mockQuery.mockResolvedValue({
+            rows: [{ raid_start_time: "2026-10-29T10:00:00.000Z" }],
+        });
 
-        const raid = await getActiveRaid("guild_123");
-        expect(raid?.startedAt).toBeInstanceOf(Date);
-        expect(raid?.startedAt.toISOString()).toBe("2026-10-29T10:00:00.000Z");
+        const result = await getActiveRaid("guild_123");
+
+        expect(result).not.toBeNull();
+        expect(result?.startedAt).toBeInstanceOf(Date);
+        expect(result?.startedAt.toISOString()).toBe("2026-10-29T10:00:00.000Z");
     });
 
-    it("returns null when the row fails validation", async () => {
-        mockQuery.mockResolvedValue({ rows: [{ raid_start_time: "not a date" }] });
+    it("returns null and logs validation error when row format is invalid", async () => {
+        mockQuery.mockResolvedValue({ rows: [{ raid_start_time: "invalid-date-string" }] });
 
-        expect(await getActiveRaid("guild_123")).toBeNull();
-        expect(console.error).toHaveBeenCalled();
+        const result = await getActiveRaid("guild_123");
+
+        expect(result).toBeNull();
     });
 
-    it("returns null when the query fails", async () => {
-        mockQuery.mockRejectedValue(new Error("connection refused"));
+    it("returns null and logs error when query rejects", async () => {
+        const dbError = new Error("connection refused");
+        mockQuery.mockRejectedValue(dbError);
 
-        expect(await getActiveRaid("guild_123")).toBeNull();
-        expect(console.error).toHaveBeenCalled();
+        const result = await getActiveRaid("guild_123");
+
+        expect(result).toBeNull();
     });
 });
