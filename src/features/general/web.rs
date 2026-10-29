@@ -97,12 +97,23 @@ pub async fn handle_heavy_features(State(state): State<Arc<WebState>>) -> Json<b
     Json(state.core.config.heavy_features)
 }
 
+/// Returns the system telemetry report covering database, redis, and memory.
+pub async fn handle_telemetry(
+    State(state): State<Arc<WebState>>,
+) -> Json<super::telemetry::TelemetryReport> {
+    let report =
+        super::telemetry::collect_core_telemetry(&state.core.db, &state.core.redis).await;
+    Json(report)
+}
+
 /// Registers the general web routes.
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new()
         .route("/heavy-features", get(handle_heavy_features))
+        .route("/telemetry", get(handle_telemetry))
         .route(
             "/guilds/{guild_id}/embeds/send",
             post(handle_send_custom_embed),
         )
 }
+
