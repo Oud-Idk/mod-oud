@@ -36,7 +36,6 @@ impl fmt::Display for DiagnosticReport<'_> {
              {db}\n\
              {redis}\n\
              Instance: {instance}/{total}\n\
-             Don't forget Moka!\n\
              {members}\n\
              Shard Memory Usage: {shard_memory}\n\
              ML Memory Usage: {ml_memory}\n\
