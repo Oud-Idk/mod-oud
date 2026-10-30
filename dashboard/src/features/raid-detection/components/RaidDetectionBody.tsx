@@ -88,7 +88,7 @@ export function RaidDetectionBody({
 
     function createRaidAction(
         kind: RaidActionKind,
-        extra: { mins?: number; maxAgeHours?: number; channelId?: string; hour?: number },
+        extra: { mins?: number; maxAgeHours?: number; channelId?: string; hours?: number },
     ): RaidAction {
         switch (kind) {
             case "ALERT":
@@ -96,7 +96,7 @@ export function RaidDetectionBody({
             case "LOCKDOWN_SERVER":
                 return { type: "LOCKDOWN_SERVER" };
             case "PAUSE_INVITES":
-                return { type: "PAUSE_INVITES", hour: extra.hour ?? 24 };
+                return { type: "PAUSE_INVITES", hours: extra.hours ?? 24 };
             case "BUMP_VERIFICATION":
                 return { type: "BUMP_VERIFICATION" };
             case "TIMEOUT_NEW_JOINS":
@@ -338,7 +338,7 @@ export function RaidDetectionBody({
 
                                         return createRaidAction(kind, {
                                             mins: 15,
-                                            hour: 24,
+                                            hours: 24,
                                             maxAgeHours: 24,
                                             channelId: Object.keys(channelMap)[0] ?? "",
                                         });
@@ -390,11 +390,11 @@ export function RaidDetectionBody({
                                         <NumberInput
                                             min={1}
                                             max={168}
-                                            value={pauseInvitesAction.hour}
+                                            value={pauseInvitesAction.hours}
                                             onChange={(val) => {
                                                 const updatedActions = currentActions.map((action) =>
                                                     action.type === "PAUSE_INVITES"
-                                                        ? { ...action, hour: Math.max(1, val ?? 24) }
+                                                        ? { ...action, hours: Math.max(1, val ?? 24) }
                                                         : action,
                                                 );
                                                 handleChange({ raidActions: updatedActions });

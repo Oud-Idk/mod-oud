@@ -88,14 +88,18 @@ pub fn extract_domain(url: &str) -> Option<&str> {
     let without_protocol = url.find("://").map_or(url, |idx| &url[idx + 3..]);
     // Finds the first `/`, `?`, or `#` (URLs are weird) and take everything before
     // example.com:8080/api/v1 -> example.com:8080
-    let domain_and_port = without_protocol
+    let authority = without_protocol
         .find(['/', '?', '#'])
         .map_or(without_protocol, |idx| &without_protocol[..idx]);
+    // Strip any userinfo, so `https://allowed.com:x@evil.com` is checked as `evil.com`.
+    let host_and_port = authority
+        .rsplit_once('@')
+        .map_or(authority, |(_, host)| host);
     // Find the the `:` which indicates port number, then take everything before
     // example.com:8080 -> example.com
-    let domain = domain_and_port
+    let domain = host_and_port
         .find(':')
-        .map_or(domain_and_port, |idx| &domain_and_port[..idx]);
+        .map_or(host_and_port, |idx| &host_and_port[..idx]);
 
     if domain.is_empty() {
         None

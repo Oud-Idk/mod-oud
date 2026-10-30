@@ -83,6 +83,55 @@ pub fn safe_reqwest_error(e: &reqwest::Error) -> String {
     parts.join(", ")
 }
 
+/// Whether `url` is safe to fetch from the bot: an http(s) URL whose host is not a
+/// loopback, link-local, or private address. Used to stop members from pointing the
+/// bot at internal services.
+#[must_use]
+pub fn is_safe_destination(url: &str) -> bool {
+    let Ok(parsed) = reqwest::Url::parse(url) else {
+        return false;
+    };
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return false;
+    }
+    let Some(host) = parsed.host_str() else {
+        return false;
+    };
+    let host = host.trim_matches(['[', ']']);
+    if host.eq_ignore_ascii_case("localhost") {
+        return false;
+    }
+    if let Ok(ip) = host.parse::<std::net::IpAddr>() {
+        return !is_private_ip(ip);
+    }
+    // Block obvious internal-only suffixes even when given as a hostname.
+    let lower = host.to_ascii_lowercase();
+    if lower.ends_with(".localhost")
+        || lower.ends_with(".local")
+        || lower.ends_with(".internal")
+        || lower == "metadata.google.internal"
+    {
+        return false;
+    }
+    true
+}
+
+fn is_private_ip(ip: std::net::IpAddr) -> bool {
+    match ip {
+        std::net::IpAddr::V4(v4) => {
+            v4.is_loopback()
+                || v4.is_private()
+                || v4.is_link_local()
+                || v4.is_broadcast()
+                || v4.is_unspecified()
+                || v4.octets()[0] == 169 && v4.octets()[1] == 254
+        }
+        std::net::IpAddr::V6(v6) => {
+            v6.is_loopback() || v6.is_unspecified() || (v6.segments()[0] & 0xfe00) == 0xfc00
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{redact_url, safe_reqwest_error};

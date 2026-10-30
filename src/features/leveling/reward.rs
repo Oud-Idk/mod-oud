@@ -59,12 +59,25 @@ pub async fn apply_role_modifications(
     roles_to_add: Vec<RoleId>,
     roles_to_remove: Vec<RoleId>,
 ) {
+    let bot_top_position = bot_top_role_position(ctx, guild_id).await;
+
     for role_id in roles_to_add {
         if let Some(current_roles) = member_roles
             && current_roles.contains(&role_id)
         {
             debug!(%role_id, "user already holds the role");
             continue;
+        }
+
+        if let Some(top) = bot_top_position {
+            // Never grant a role at or above the bot's own highest role.
+            if let Ok(guild_roles) = guild_id.roles(&ctx.http).await
+                && let Some(role) = guild_roles.get(&role_id)
+                && role.position >= top
+            {
+                warn!(%guild_id, %user_id, %role_id, "refusing to grant a role at or above the bot's highest role");
+                continue;
+            }
         }
 
         if let Err(e) = ctx
@@ -97,4 +110,15 @@ pub async fn apply_role_modifications(
 
         debug!(%guild_id, %user_id, %role_id, "removed level reward role");
     }
+}
+
+async fn bot_top_role_position(ctx: &Context, guild_id: GuildId) -> Option<u16> {
+    let member = guild_id.current_user_member(&ctx.http).await.ok()?;
+    let roles = guild_id.roles(&ctx.http).await.ok()?;
+    member
+        .roles
+        .iter()
+        .filter_map(|role_id| roles.get(role_id))
+        .map(|role| role.position)
+        .max()
 }

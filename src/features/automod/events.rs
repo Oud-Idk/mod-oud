@@ -18,7 +18,7 @@ use crate::core::config::state::{BotData, Error};
 use crate::features::automod::events::cross_channel::handle_cross_channel_spam;
 use crate::features::automod::events::spam::handle_spam_prevention;
 use crate::features::automod::rules::should_apply_filter;
-use crate::features::automod::types::FilterVerdict;
+use crate::features::automod::types::{ExternalLinksRule, FilterVerdict};
 use crate::features::automod::verdict::execute_verdict;
 use crate::features::bad_words::{filter_bad_words, get_active_bad_word_rulesets};
 use anyhow::Result;
@@ -102,16 +102,48 @@ pub async fn check_for_filter(
                 return Ok(true);
             }
 
-            verdict = verdict
-                .or_else(|| offensive_messages::filter_offensive_messages(message, filtering))
-                .or_else(|| server_invites::filter_server_invites(message, filtering))
-                .or_else(|| external_urls::filter_external_urls(message, filtering))
-                .or_else(|| excessive_caps::filter_excessive_caps(message, filtering))
-                .or_else(|| excessive_emojis::filter_excessive_emojis(message, filtering))
-                .or_else(|| excessive_spoilers::filter_excessive_spoilers(message, filtering))
-                .or_else(|| excessive_mentions::filter_excessive_mentions(message, filtering))
-                .or_else(|| zalgo::filter_zalgo(message, filtering))
-                .or_else(|| crypto_address::filter_crypto_addresses(message, filtering));
+            // Run every static filter even when the external-URL check is still
+            // pending a Safe Browsing lookup, so a later hard block is not skipped
+            // and a Safe Browsing pass cannot let an unchecked message through.
+            let mut static_verdict = FilterVerdict::Pass;
+            let mut pending_safe_browsing: Option<(Vec<String>, &ExternalLinksRule)> = None;
+            let candidates = [
+                offensive_messages::filter_offensive_messages(message, filtering),
+                server_invites::filter_server_invites(message, filtering),
+                external_urls::filter_external_urls(message, filtering),
+                excessive_caps::filter_excessive_caps(message, filtering),
+                excessive_emojis::filter_excessive_emojis(message, filtering),
+                excessive_spoilers::filter_excessive_spoilers(message, filtering),
+                excessive_mentions::filter_excessive_mentions(message, filtering),
+                zalgo::filter_zalgo(message, filtering),
+                crypto_address::filter_crypto_addresses(message, filtering),
+            ];
+            for candidate in candidates {
+                match candidate {
+                    FilterVerdict::Block { .. } => {
+                        static_verdict = candidate;
+                        break;
+                    }
+                    FilterVerdict::RequiresSafeBrowsingCheck {
+                        urls,
+                        external_links,
+                    } => {
+                        if !matches!(static_verdict, FilterVerdict::Block { .. }) {
+                            pending_safe_browsing = Some((urls, external_links));
+                        }
+                    }
+                    FilterVerdict::Pass => {}
+                }
+            }
+            if let Some((urls, external_links)) = pending_safe_browsing
+                && !matches!(static_verdict, FilterVerdict::Block { .. })
+            {
+                static_verdict = FilterVerdict::RequiresSafeBrowsingCheck {
+                    urls,
+                    external_links,
+                };
+            }
+            verdict = static_verdict;
 
             // The ML pass is the expensive one, so it runs last. It also runs
             // when a Safe Browsing check is still pending, which it may replace.

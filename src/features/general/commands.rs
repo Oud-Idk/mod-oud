@@ -38,19 +38,18 @@ fn format_memory_status(mem: &MemoryTelemetry) -> (String, String) {
     let shard = mem
         .bot_mb
         .map_or_else(|| "Unknown".to_string(), |mb| format!("{mb:.2} MB"));
-    let ml = mem
-        .ml_mb
-        .map_or_else(|| "offline/not found".to_string(), |mb| format!("{mb:.2} MB"));
+    let ml = mem.ml_mb.map_or_else(
+        || "offline/not found".to_string(),
+        |mb| format!("{mb:.2} MB"),
+    );
     (shard, ml)
 }
 
 fn format_gateway_latency(shard: Option<&ShardTelemetry>) -> String {
-    shard
-        .and_then(|s| s.gateway_latency_ms)
-        .map_or_else(
-            || "Not **yet** provided by Discord".to_string(),
-            |ms| format!("{ms}ms"),
-        )
+    shard.and_then(|s| s.gateway_latency_ms).map_or_else(
+        || "Not **yet** provided by Discord".to_string(),
+        |ms| format!("{ms}ms"),
+    )
 }
 
 fn get_member_count_text(count: Option<u64>) -> String {
@@ -67,11 +66,7 @@ impl fmt::Display for PingDisplayReport<'_> {
         let latency_display = format_gateway_latency(self.telemetry.shard.as_ref());
         let member_display = get_member_count_text(self.member_count);
 
-        let instance = self
-            .telemetry
-            .shard
-            .as_ref()
-            .map_or(1, |s| s.shard_id + 1);
+        let instance = self.telemetry.shard.as_ref().map_or(1, |s| s.shard_id + 1);
         let total = self.telemetry.shard.as_ref().map_or(1, |s| s.total_shards);
 
         write!(

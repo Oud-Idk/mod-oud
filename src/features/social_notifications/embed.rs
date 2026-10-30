@@ -50,7 +50,16 @@ pub fn description_from_markup(markup: &str) -> String {
 
 /// Collects text nodes in document order, marking every boundary so adjacent
 /// tags like `</a><p>` do not glue two words into one.
+const MAX_NESTING_DEPTH: usize = 64;
+
 fn collect_text(element: ElementRef<'_>, out: &mut String) {
+    collect_text_inner(element, out, 0);
+}
+
+fn collect_text_inner(element: ElementRef<'_>, out: &mut String, depth: usize) {
+    if depth >= MAX_NESTING_DEPTH {
+        return;
+    }
     for child in element.children() {
         match child.value() {
             Node::Text(text) => {
@@ -64,7 +73,7 @@ fn collect_text(element: ElementRef<'_>, out: &mut String) {
                 }
 
                 if let Some(child) = ElementRef::wrap(child) {
-                    collect_text(child, out);
+                    collect_text_inner(child, out, depth + 1);
                 }
             }
             _ => {}

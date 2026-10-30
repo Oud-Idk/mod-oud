@@ -49,7 +49,7 @@ describe("raidDetectionInputSchema", () => {
             raidActions: [
                 { type: "LOCKDOWN_SERVER" },
                 { type: "ALERT", channelId: "chan_1" },
-                { type: "PAUSE_INVITES", hour: 2 },
+                { type: "PAUSE_INVITES", hours: 2 },
             ],
         });
 
@@ -91,10 +91,10 @@ describe("raidActionSchema (discriminated union)", () => {
     });
 
     it("should accept a PAUSE_INVITES action and return exact parsed data", () => {
-        const result = raidActionSchema.safeParse({ type: "PAUSE_INVITES", hour: 2 });
+        const result = raidActionSchema.safeParse({ type: "PAUSE_INVITES", hours: 2 });
         expect(result.success).toBe(true);
         if (result.success) {
-            expect(result.data).toEqual({ type: "PAUSE_INVITES", hour: 2 });
+            expect(result.data).toEqual({ type: "PAUSE_INVITES", hours: 2 });
         }
     });
 

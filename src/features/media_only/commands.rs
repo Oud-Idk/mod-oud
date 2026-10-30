@@ -21,7 +21,12 @@ pub async fn media_only(_: Context<'_>) -> Result<()> {
     Ok(())
 }
 
-#[poise::command(slash_command, guild_only)]
+#[poise::command(
+    slash_command,
+    guild_only,
+    required_permissions = "MANAGE_GUILD",
+    default_member_permissions = "MANAGE_GUILD"
+)]
 pub async fn set(
     ctx: Context<'_>,
 
@@ -67,7 +72,12 @@ pub async fn set(
     Ok(())
 }
 
-#[poise::command(slash_command, guild_only)]
+#[poise::command(
+    slash_command,
+    guild_only,
+    required_permissions = "MANAGE_GUILD",
+    default_member_permissions = "MANAGE_GUILD"
+)]
 pub async fn disable(
     ctx: Context<'_>,
 

@@ -134,7 +134,8 @@ async fn end_giveaway(http: &Http, giveaway: &Giveaway) -> Result<(), Box<dyn st
     let channel_id = giveaway
         .channel_id
         .map(|cid| ChannelId::new(cid.cast_unsigned()))
-        .ok_or("Giveaway has no channel_id assigned")?;
+        .filter(|cid| cid.get() > 0)
+        .ok_or("Giveaway has an invalid channel_id assigned")?;
 
     let message_id = giveaway
         .message_id

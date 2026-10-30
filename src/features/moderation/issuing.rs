@@ -4,7 +4,7 @@ use crate::core::config::settings::GuildSettings;
 use crate::core::config::settings::get_settings;
 use crate::features::moderation::ActionType;
 use crate::features::moderation::audit;
-use crate::features::moderation::database::log_moderation_action;
+use crate::features::moderation::database::{delete_temp_bans_for_user, log_moderation_action};
 use crate::features::moderation::placeholders::{
     replace_ban_placeholders, replace_basic_placeholder, replace_kick_placeholder,
     replace_mute_placeholder, replace_reason_placeholders,
@@ -184,11 +184,17 @@ pub async fn issue_ban(
         }
     );
 
+    let old_temp_bans_cleared = delete_temp_bans_for_user(db, guild_id, user.id).await?;
+
     guild_id
         .ban_with_reason(http, user.id, dmd_time, reason)
         .await?;
 
     let dur: Option<TimeDelta> = if let Some(duration) = duration {
+        debug!(
+            cleared_temp_bans = old_temp_bans_cleared,
+            "cleared stale temporary ban schedules before scheduling a new unban"
+        );
         let chrono_dur = schedule_unban(db, guild_id, &user, duration).await?;
         debug!(
             duration_secs = chrono_dur.num_seconds(),

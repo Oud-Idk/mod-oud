@@ -10,6 +10,7 @@ import {
     deleteReportedMessageCommand,
     getInitialReportsFromDb,
     getMoreReportsFromDb,
+    getReportGuildId,
     resolveReportStatusCommand,
     saveReportConfig,
     timeoutUserCommand,
@@ -39,6 +40,10 @@ export async function fetchMoreReportsAction(guildId: string, beforeId: number):
 export async function deleteReportedMessageAction(guildId: string, reportId: number, channelId: string, messageId: string): Promise<void> {
     try {
         await verifyGuildAccess(guildId);
+        const reportGuildId = await getReportGuildId(reportId);
+        if (reportGuildId !== guildId) {
+            throw new Error("Report not found.");
+        }
         await deleteReportedMessageCommand(reportId, channelId, messageId);
         revalidatePath(`/dashboard/${guildId}/report`);
     } catch (error) {
@@ -50,6 +55,10 @@ export async function deleteReportedMessageAction(guildId: string, reportId: num
 export async function resolveReportStatusAction(guildId: string, reportId: number, status: ReportAction): Promise<void> {
     try {
         await verifyGuildAccess(guildId);
+        const reportGuildId = await getReportGuildId(reportId);
+        if (reportGuildId !== guildId) {
+            throw new Error("Report not found.");
+        }
         const session = await auth();
 
         if (!session?.user) {
@@ -67,6 +76,10 @@ export async function resolveReportStatusAction(guildId: string, reportId: numbe
 export async function timeoutUserAction(guildId: string, reportId: number, durationMins: number, reason?: string): Promise<void> {
     try {
         await verifyGuildAccess(guildId);
+        const reportGuildId = await getReportGuildId(reportId);
+        if (reportGuildId !== guildId) {
+            throw new Error("Report not found.");
+        }
         const session = await auth();
 
         if (!session?.user) {
@@ -84,6 +97,10 @@ export async function timeoutUserAction(guildId: string, reportId: number, durat
 export async function warnUserAction(guildId: string, reportId: number, reason?: string): Promise<void> {
     try {
         await verifyGuildAccess(guildId);
+        const reportGuildId = await getReportGuildId(reportId);
+        if (reportGuildId !== guildId) {
+            throw new Error("Report not found.");
+        }
         const session = await auth();
 
         if (!session?.user) {
@@ -101,6 +118,10 @@ export async function warnUserAction(guildId: string, reportId: number, reason?:
 export async function banUserAction(guildId: string, reportId: number, durationMins?: number, reason?: string): Promise<void> {
     try {
         await verifyGuildAccess(guildId);
+        const reportGuildId = await getReportGuildId(reportId);
+        if (reportGuildId !== guildId) {
+            throw new Error("Report not found.");
+        }
         const session = await auth();
 
         if (!session?.user) {

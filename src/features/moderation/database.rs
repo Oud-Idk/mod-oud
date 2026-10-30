@@ -129,6 +129,23 @@ pub async fn fetch_expired_temp_bans(
     Ok(rows.into_iter().map(Into::into).collect())
 }
 
+/// Deletes pending temporary-ban schedules for a user so a newer ban replaces the old one.
+pub async fn delete_temp_bans_for_user(
+    db: &PgPool,
+    guild_id: GuildId,
+    user_id: UserId,
+) -> Result<u64, sqlx::Error> {
+    let result = sqlx::query!(
+        "DELETE FROM temp_bans WHERE guild_id = $1 AND user_id = $2",
+        guild_id.get().cast_signed(),
+        user_id.get().cast_signed(),
+    )
+    .execute(db)
+    .await?;
+
+    Ok(result.rows_affected())
+}
+
 /// Deletes processed temp ban records by ID.
 pub async fn delete_processed_temp_bans(db: &PgPool, ids: &[i64]) -> Result<u64, sqlx::Error> {
     let result = sqlx::query!("DELETE FROM temp_bans WHERE id = ANY($1)", ids)

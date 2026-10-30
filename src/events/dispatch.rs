@@ -208,6 +208,17 @@ async fn dispatch_inner(ctx: &serenity::Context, event: &FullEvent, data: &BotDa
             on_message_delete(ctx, data, channel_id, deleted_message_id, guild_id.as_ref()).await?;
         }
 
+        FullEvent::MessageDeleteBulk {
+            channel_id,
+            multiple_deleted_messages_ids,
+            guild_id,
+        } => {
+            for deleted_message_id in multiple_deleted_messages_ids {
+                on_message_delete(ctx, data, channel_id, deleted_message_id, guild_id.as_ref())
+                    .await?;
+            }
+        }
+
         FullEvent::MessageUpdate {
             old_if_available,
             new,
@@ -225,10 +236,15 @@ async fn dispatch_inner(ctx: &serenity::Context, event: &FullEvent, data: &BotDa
             // Discord also sends MESSAGE_UPDATE when it unfurls a link, which is not an author edit.
             // Running the content checks for those would double-count the message towards spam
             // limits, so only real edits are re-evaluated.
-            if let Some(edited) = new.as_ref()
-                && edited.edited_timestamp.is_some()
-            {
-                on_message_edit(ctx, data, edited).await?;
+            if event.edited_timestamp.is_some() {
+                let edited = if let Some(edited) = new.as_ref() {
+                    Some(edited.clone())
+                } else {
+                    ctx.http.get_message(event.channel_id, event.id).await.ok()
+                };
+                if let Some(edited) = edited.as_ref() {
+                    on_message_edit(ctx, data, edited).await?;
+                }
             }
         }
 

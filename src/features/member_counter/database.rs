@@ -6,7 +6,9 @@ pub async fn any_guild_ids_with_member_counters(db: &sqlx::Pool<sqlx::Postgres>)
         r"
         SELECT guild_id
         FROM guild_configs
-        WHERE (settings->'member_counter'->>'enabled')::boolean = true
+        WHERE (settings->'member_counter'->>'enabled') IS NOT NULL
+          AND (settings->'member_counter'->>'enabled') ~ '^(true|false)$'
+          AND (settings->'member_counter'->>'enabled')::boolean = true
         ",
     )
     .fetch_all(db)

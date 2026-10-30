@@ -13,7 +13,7 @@ pub async fn subscribe(_: Context<'_>) -> Result<(), Error> {
 }
 
 /// Subscribe to an RSS feed.
-#[command(slash_command, guild_only)]
+#[command(slash_command, guild_only, required_permissions = "MANAGE_GUILD")]
 pub async fn rss(
     ctx: Context<'_>,
     #[description = "The RSS/Atom Feed URL"] url: String,

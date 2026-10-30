@@ -68,6 +68,11 @@ pub async fn subscribe_feed(
     channel_id: ChannelId,
     guild_id: GuildId,
 ) -> Result<Subscription, SubscribeError> {
+    if !crate::shared::http::is_safe_destination(url) {
+        return Err(SubscribeError::UnusableFeed(
+            "That URL points somewhere the bot is not allowed to fetch.".to_string(),
+        ));
+    }
     let resp = core
         .reqwest_client
         .get(url)

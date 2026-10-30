@@ -200,17 +200,20 @@ pub async fn insert_warn(
 ) -> Result<(i64, i32), sqlx::Error> {
     let res = sqlx::query!(
         r#"
-        WITH inserted AS (
+        WITH locked AS (
+            SELECT pg_advisory_xact_lock(hashtext($1::bigint::text || ':' || $2::bigint::text))
+        ),
+        inserted AS (
             INSERT INTO warns (guild_id, user_id, moderator_id, reason)
             VALUES ($1, $2, $3, $4)
             RETURNING id
         )
         SELECT
             inserted.id,
-            -- Pardoned warnings are inactive; counting them let a threshold fire early or be
-            -- skipped once the historical total had already passed it.
+            -- Count after the insert, under an advisory lock so concurrent warns for
+            -- the same user serialise and never read the same pre-insert snapshot.
             (SELECT count(*) FROM warns
-              WHERE guild_id = $1 AND user_id = $2 AND is_active = TRUE) + 1 AS "count!"
+              WHERE guild_id = $1 AND user_id = $2 AND is_active = TRUE) AS "count!"
         FROM inserted
         "#,
         guild_id.get().cast_signed(),

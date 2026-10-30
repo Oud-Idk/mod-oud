@@ -117,8 +117,17 @@ pub async fn upcoming(
     #[description = "Days ahead to check (default: 14)"] days: Option<i16>,
 ) -> Result<(), Error> {
     let lookahead_days = i32::from(days.unwrap_or(14).min(60));
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?;
 
     let records = database::get_upcoming_birthdays(&ctx.data().core.db, lookahead_days).await?;
+
+    // Birthdays are stored globally by user, but the list is a per-guild view, so
+    // only member birthdays are surfaced here.
+    let member_ids = guild_member_ids(&ctx, guild_id).await;
+    let records: Vec<_> = records
+        .into_iter()
+        .filter(|record| member_ids.contains(&record.user_id))
+        .collect();
 
     if records.is_empty() {
         send_ephemeral(
@@ -135,6 +144,31 @@ pub async fn upcoming(
     pagination::paginate_birthdays(ctx, &records, title).await?;
 
     Ok(())
+}
+
+/// Collects the user ids of the guild's non-bot members, for per-guild birthday listings.
+async fn guild_member_ids(ctx: &Context<'_>, guild_id: serenity::GuildId) -> Vec<serenity::UserId> {
+    let mut member_ids = Vec::new();
+    let mut after = None;
+    let http = ctx.serenity_context().http.clone();
+
+    loop {
+        let members = guild_id
+            .members(&http, Some(1000), after)
+            .await
+            .unwrap_or_default();
+        if members.is_empty() {
+            break;
+        }
+        for member in &members {
+            if !member.user.bot {
+                member_ids.push(member.user.id);
+            }
+        }
+        after = members.last().map(|member| member.user.id);
+    }
+
+    member_ids
 }
 
 /// View your registered birthday

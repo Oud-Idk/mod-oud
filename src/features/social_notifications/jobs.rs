@@ -170,6 +170,14 @@ pub async fn poll_due_feeds(
         let feed_id = feed_row.id;
         let is_first_run = feed_row.last_polled_at.is_none();
 
+        if !crate::shared::http::is_safe_destination(&feed_row.url) {
+            warn!(feed_id = %feed_id, url = %feed_row.url, "skipping feed pointed at a disallowed destination");
+            if let Err(mark_err) = database::mark_feed_polled(db, feed_id).await {
+                warn!(error = ?mark_err, feed_id = %feed_id, "feed poll marker write failed");
+            }
+            continue;
+        }
+
         let resp = match client.get(&feed_row.url).send().await {
             Ok(r) => r,
             Err(e) => {

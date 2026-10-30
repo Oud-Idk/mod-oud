@@ -126,6 +126,12 @@ async fn invoke_actions(
             }
             RaidAction::BumpVerification => {
                 database::bump_verification_to_max(&data.core.db, guild_id).await?;
+                crate::core::config::settings::invalidate_settings_cache(
+                    &data.core.redis,
+                    &data.core.guild_configs_cache,
+                    guild_id,
+                )
+                .await;
                 audit::verification_bumped(guild_id, Some(mod_username));
             }
             RaidAction::PauseInvites { hours } => {
