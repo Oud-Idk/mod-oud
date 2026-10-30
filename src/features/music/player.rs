@@ -74,12 +74,12 @@ impl VoiceEventHandler for TrackEndHandler {
 
 /// Fetches track metadata for a URL/query without starting playback.
 pub async fn fetch_metadata(services: PlaybackServices<'_>, query: &str) -> Result<AuxMetadata> {
-    if (query.starts_with("http://") || query.starts_with("https://"))
-        && !crate::shared::http::is_safe_destination(query)
-    {
-        return Err(anyhow::anyhow!(
-            "That URL points somewhere the bot is not allowed to fetch."
-        ));
+    if query.starts_with("http://") || query.starts_with("https://") {
+        if !crate::shared::http::is_safe_destination_async(query).await {
+            return Err(anyhow::anyhow!(
+                "That URL points somewhere the bot is not allowed to fetch."
+            ));
+        }
     }
     let mut src = YoutubeDl::new(services.reqwest_client.clone(), query.to_string());
     match src.aux_metadata().await {

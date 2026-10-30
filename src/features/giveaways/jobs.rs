@@ -133,8 +133,9 @@ async fn process_expired_giveaways(
 async fn end_giveaway(http: &Http, giveaway: &Giveaway) -> Result<(), Box<dyn std::error::Error>> {
     let channel_id = giveaway
         .channel_id
-        .map(|cid| ChannelId::new(cid.cast_unsigned()))
-        .filter(|cid| cid.get() > 0)
+        .map(|cid| cid.cast_unsigned())
+        .filter(|&cid| cid > 0)
+        .map(ChannelId::new)
         .ok_or("Giveaway has an invalid channel_id assigned")?;
 
     let message_id = giveaway

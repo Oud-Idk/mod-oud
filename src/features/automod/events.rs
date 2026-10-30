@@ -57,7 +57,7 @@ pub async fn check_for_filter(
         &data.core.guild_configs_cache,
         guild_id,
     )
-    .await?;
+        .await?;
 
     tracing::Span::current().record("guild_id", guild_id.get());
 
@@ -102,48 +102,43 @@ pub async fn check_for_filter(
                 return Ok(true);
             }
 
-            // Run every static filter even when the external-URL check is still
-            // pending a Safe Browsing lookup, so a later hard block is not skipped
-            // and a Safe Browsing pass cannot let an unchecked message through.
-            let mut static_verdict = FilterVerdict::Pass;
+            let mut static_verdict = offensive_messages::filter_offensive_messages(message, filtering)
+                .or_else(|| server_invites::filter_server_invites(message, filtering));
+
             let mut pending_safe_browsing: Option<(Vec<String>, &ExternalLinksRule)> = None;
-            let candidates = [
-                offensive_messages::filter_offensive_messages(message, filtering),
-                server_invites::filter_server_invites(message, filtering),
-                external_urls::filter_external_urls(message, filtering),
-                excessive_caps::filter_excessive_caps(message, filtering),
-                excessive_emojis::filter_excessive_emojis(message, filtering),
-                excessive_spoilers::filter_excessive_spoilers(message, filtering),
-                excessive_mentions::filter_excessive_mentions(message, filtering),
-                zalgo::filter_zalgo(message, filtering),
-                crypto_address::filter_crypto_addresses(message, filtering),
-            ];
-            for candidate in candidates {
-                match candidate {
-                    FilterVerdict::Block { .. } => {
-                        static_verdict = candidate;
-                        break;
+
+            if matches!(static_verdict, FilterVerdict::Pass) {
+                match external_urls::filter_external_urls(message, filtering) {
+                    block @ FilterVerdict::Block { .. } => {
+                        static_verdict = block;
                     }
-                    FilterVerdict::RequiresSafeBrowsingCheck {
-                        urls,
-                        external_links,
-                    } => {
-                        if !matches!(static_verdict, FilterVerdict::Block { .. }) {
-                            pending_safe_browsing = Some((urls, external_links));
-                        }
+                    FilterVerdict::RequiresSafeBrowsingCheck { urls, external_links } => {
+                        pending_safe_browsing = Some((urls, external_links));
                     }
                     FilterVerdict::Pass => {}
                 }
             }
-            if let Some((urls, external_links)) = pending_safe_browsing
-                && !matches!(static_verdict, FilterVerdict::Block { .. })
+
+            if matches!(static_verdict, FilterVerdict::Pass) {
+                static_verdict = static_verdict
+                    .or_else(|| excessive_caps::filter_excessive_caps(message, filtering))
+                    .or_else(|| excessive_emojis::filter_excessive_emojis(message, filtering))
+                    .or_else(|| excessive_spoilers::filter_excessive_spoilers(message, filtering))
+                    .or_else(|| excessive_mentions::filter_excessive_mentions(message, filtering))
+                    .or_else(|| zalgo::filter_zalgo(message, filtering))
+                    .or_else(|| crypto_address::filter_crypto_addresses(message, filtering));
+            }
+
+            verdict = if matches!(static_verdict, FilterVerdict::Pass)
+                && let Some((urls, external_links)) = pending_safe_browsing
             {
-                static_verdict = FilterVerdict::RequiresSafeBrowsingCheck {
+                FilterVerdict::RequiresSafeBrowsingCheck {
                     urls,
                     external_links,
-                };
-            }
-            verdict = static_verdict;
+                }
+            } else {
+                static_verdict
+            };
 
             // The ML pass is the expensive one, so it runs last. It also runs
             // when a Safe Browsing check is still pending, which it may replace.

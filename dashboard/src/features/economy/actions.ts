@@ -1,6 +1,6 @@
 "use server";
 
-import { verifyGuildAccess } from "@/features/_shared/guild";
+import { verifyGuildAccess, verifyManageRolesAccess } from "@/features/_shared/guild";
 import { revalidatePath } from "next/cache";
 import {
     EconomyConfigInput,
@@ -23,6 +23,7 @@ import {
     syncEconomyWorkMessages
 } from "@/features/economy/queries";
 import { z } from "zod";
+import { verifyRoleGrantHierarchy } from "@/features/_shared/hierarchy";
 
 export async function saveEconomyConfigAction(
     guildId: string,
@@ -62,6 +63,18 @@ export async function saveEconomyItemAction(
     try {
         await verifyGuildAccess(guildId);
         const validatedItem = economyItemSchema.parse(rawData);
+
+        const itemRoles = validatedItem.actions.flatMap((action) => {
+            if (action.type === "ADD_ROLES" || action.type === "REMOVE_ROLES") {
+                return action.roleIds;
+            }
+            return [];
+        });
+
+        if (itemRoles.length > 0) {
+            await verifyRoleGrantHierarchy(guildId, itemRoles);
+        }
+
         const savedItem = await saveEconomyItem(guildId, validatedItem);
         revalidatePath(`/dashboard/${guildId}/economy`);
         return savedItem;
@@ -79,6 +92,7 @@ export async function saveEconomyItemAction(
         );
     }
 }
+
 
 export async function deleteEconomyItemAction(
     guildId: string,

@@ -215,6 +215,7 @@ pub async fn insert_warn(
             (SELECT count(*) FROM warns
               WHERE guild_id = $1 AND user_id = $2 AND is_active = TRUE) AS "count!"
         FROM inserted
+        CROSS JOIN locked
         "#,
         guild_id.get().cast_signed(),
         user_id.get().cast_signed(),

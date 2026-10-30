@@ -204,15 +204,40 @@ async fn modify_roles(
     item_name: &str,
     add: bool,
 ) {
-    let bot_top_position = bot_top_role_position(ctx, guild_id).await;
+    if role_ids.is_empty() {
+        return;
+    }
+
+    let guild_roles = match guild_id.roles(&ctx.http()).await {
+        Ok(roles) => roles,
+        Err(e) => {
+            warn!(
+                %guild_id,
+                error = ?e,
+                item_name,
+                "failed to fetch guild roles for economy item action"
+            );
+            return;
+        }
+    };
+
+    let bot_top_position = bot_top_role_position(ctx, guild_id, &guild_roles).await;
 
     let reason = format!("Item action: {item_name}");
     for &role_id in role_ids {
-        if add && let Some(top) = bot_top_position {
-            if let Ok(guild_roles) = guild_id.roles(&ctx.http()).await
-                && let Some(role) = guild_roles.get(&role_id)
-                && role.position >= top
-            {
+        if let Some(role) = guild_roles.get(&role_id) {
+            if role.managed {
+                warn!(
+                    %guild_id,
+                    %user_id,
+                    %role_id,
+                    item_name,
+                    "refusing to modify managed role via item action"
+                );
+                continue;
+            }
+
+            if add && let Some(top) = bot_top_position && role.position >= top {
                 warn!(
                     %guild_id,
                     %user_id,
@@ -250,6 +275,23 @@ async fn modify_roles(
     }
 }
 
+async fn bot_top_role_position(
+    ctx: &Context<'_>,
+    guild_id: GuildId,
+    guild_roles: &std::collections::HashMap<serenity::all::RoleId, serenity::all::Role>,
+) -> Option<u16> {
+    let serenity_ctx = ctx.serenity_context();
+    let member = guild_id
+        .current_user_member(&serenity_ctx.http)
+        .await
+        .ok()?;
+    member
+        .roles
+        .iter()
+        .filter_map(|role_id| guild_roles.get(role_id))
+        .map(|role| role.position)
+        .max()
+}
 /// Normalizes both `quantities` map and `item_ids` fallback into a single list of
 /// (`item_id`, `total_qty`).
 fn resolve_item_counts(
@@ -403,19 +445,4 @@ mod tests {
         assert!(ActionTrigger::Buy.matches(&plain));
         assert!(ActionTrigger::Use.matches(&plain));
     }
-}
-
-async fn bot_top_role_position(ctx: &Context<'_>, guild_id: GuildId) -> Option<u16> {
-    let serenity_ctx = ctx.serenity_context();
-    let member = guild_id
-        .current_user_member(&serenity_ctx.http)
-        .await
-        .ok()?;
-    let roles = guild_id.roles(&serenity_ctx.http).await.ok()?;
-    member
-        .roles
-        .iter()
-        .filter_map(|role_id| roles.get(role_id))
-        .map(|role| role.position)
-        .max()
 }
