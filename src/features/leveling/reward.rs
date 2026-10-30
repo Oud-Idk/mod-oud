@@ -90,7 +90,9 @@ pub async fn apply_role_modifications(
             }
 
             // Never grant a role at or above the bot's own highest role
-            if let Some(top) = bot_top_position && role.position >= top {
+            if let Some(top) = bot_top_position
+                && role.position >= top
+            {
                 warn!(%guild_id, %user_id, %role_id, "refusing to grant a role at or above the bot's highest role");
                 continue;
             }
@@ -119,7 +121,9 @@ pub async fn apply_role_modifications(
             if role.managed {
                 continue;
             }
-            if let Some(top) = bot_top_position && role.position >= top {
+            if let Some(top) = bot_top_position
+                && role.position >= top
+            {
                 continue;
             }
         }

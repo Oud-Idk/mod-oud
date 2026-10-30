@@ -126,12 +126,10 @@ pub async fn upcoming(
     let records = database::get_upcoming_birthdays(&ctx.data().core.db, lookahead_days).await?;
 
     if records.is_empty() {
-        ctx.send(
-            poise::CreateReply::default().content(format!(
-                "No upcoming birthdays in the next **{lookahead_days}** days."
-            )),
-        )
-            .await?;
+        ctx.send(poise::CreateReply::default().content(format!(
+            "No upcoming birthdays in the next **{lookahead_days}** days."
+        )))
+        .await?;
         return Ok(());
     }
 
@@ -144,12 +142,10 @@ pub async fn upcoming(
         .collect();
 
     if records.is_empty() {
-        ctx.send(
-            poise::CreateReply::default().content(format!(
-                "No upcoming birthdays in the next **{lookahead_days}** days."
-            )),
-        )
-            .await?;
+        ctx.send(poise::CreateReply::default().content(format!(
+            "No upcoming birthdays in the next **{lookahead_days}** days."
+        )))
+        .await?;
         return Ok(());
     }
 

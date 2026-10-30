@@ -57,7 +57,7 @@ pub async fn check_for_filter(
         &data.core.guild_configs_cache,
         guild_id,
     )
-        .await?;
+    .await?;
 
     tracing::Span::current().record("guild_id", guild_id.get());
 
@@ -102,8 +102,9 @@ pub async fn check_for_filter(
                 return Ok(true);
             }
 
-            let mut static_verdict = offensive_messages::filter_offensive_messages(message, filtering)
-                .or_else(|| server_invites::filter_server_invites(message, filtering));
+            let mut static_verdict =
+                offensive_messages::filter_offensive_messages(message, filtering)
+                    .or_else(|| server_invites::filter_server_invites(message, filtering));
 
             let mut pending_safe_browsing: Option<(Vec<String>, &ExternalLinksRule)> = None;
 
@@ -112,7 +113,10 @@ pub async fn check_for_filter(
                     block @ FilterVerdict::Block { .. } => {
                         static_verdict = block;
                     }
-                    FilterVerdict::RequiresSafeBrowsingCheck { urls, external_links } => {
+                    FilterVerdict::RequiresSafeBrowsingCheck {
+                        urls,
+                        external_links,
+                    } => {
                         pending_safe_browsing = Some((urls, external_links));
                     }
                     FilterVerdict::Pass => {}

@@ -237,7 +237,10 @@ async fn modify_roles(
                 continue;
             }
 
-            if add && let Some(top) = bot_top_position && role.position >= top {
+            if add
+                && let Some(top) = bot_top_position
+                && role.position >= top
+            {
                 warn!(
                     %guild_id,
                     %user_id,

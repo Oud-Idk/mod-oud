@@ -87,10 +87,9 @@ pub fn safe_reqwest_error(e: &reqwest::Error) -> String {
         parts.push("unspecified".to_string());
     }
     parts.join(", ")
-}// ---------------------------------------------------------------------------
+} // ---------------------------------------------------------------------------
 // SSRF Protection & Safe HTTP Client
 // ---------------------------------------------------------------------------
-
 
 /// Evaluates whether an IP address belongs to a private, loopback, link-local,
 /// or reserved network.
@@ -254,7 +253,8 @@ impl Resolve for SafeDnsResolver {
                 return Err(Box::new(std::io::Error::new(
                     std::io::ErrorKind::PermissionDenied,
                     "Destination resolved to a restricted IP address",
-                )) as Box<dyn std::error::Error + Send + Sync>);
+                ))
+                    as Box<dyn std::error::Error + Send + Sync>);
             }
 
             let addrs: Addrs = Box::new(safe.into_iter());
