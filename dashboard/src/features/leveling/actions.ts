@@ -18,7 +18,7 @@ import {
     saveLevelRewardInputSchema,
     saveXpMultiplierInputSchema,
 } from "@/features/leveling/types";
-import { verifyGuildAccess, verifyManageRolesAccess } from "@/features/_shared/guild";
+import { verifyGuildAccess } from "@/features/_shared/guild";
 import { verifyRoleGrantHierarchy } from "@/features/_shared/hierarchy";
 
 export async function deleteMultipliersAction(

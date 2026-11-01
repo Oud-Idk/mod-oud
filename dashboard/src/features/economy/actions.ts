@@ -1,6 +1,6 @@
 "use server";
 
-import { verifyGuildAccess, verifyManageRolesAccess } from "@/features/_shared/guild";
+import { verifyGuildAccess } from "@/features/_shared/guild";
 import { revalidatePath } from "next/cache";
 import {
     EconomyConfigInput,

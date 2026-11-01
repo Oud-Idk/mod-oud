@@ -154,9 +154,10 @@ fn deliver_reminder(
                     error = ?e,
                     "reminder embed generation failed"
                 );
-                // Invalid template/embed -> advance state so it doesn't choke forever
-                if let Err(e) = handle_post_execution(&db, &record).await {
-                    error!(error = ?e, reminder_id, "reminder state update failed");
+                // Defer instead of advancing the recurrence: a broken template would otherwise
+                // fire again on its next scheduled slot and fail the same way.
+                if let Err(err) = defer_failed_reminder(&db, reminder_id, now).await {
+                    error!(error = ?err, reminder_id, "failed reminder could not be deferred");
                 }
                 return Err(reminder_id);
             }
@@ -211,7 +212,13 @@ async fn handle_post_execution(
                 timezone: record.parsed_timezone(),
             };
 
-            let next_run = calculate_next_trigger(Utc::now(), &rule);
+            let now = Utc::now();
+            let mut next_run = calculate_next_trigger(now, &rule);
+            // A recurring reminder must never be rescheduled into the past or the present, or it
+            // would keep occupying the front of every batch.
+            if next_run <= now {
+                next_run = now + chrono::Duration::seconds(60);
+            }
             update_reminder_next_trigger(db, record.id, next_run).await?;
 
             debug!(

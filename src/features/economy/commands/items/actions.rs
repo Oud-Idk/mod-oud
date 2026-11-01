@@ -119,15 +119,17 @@ pub async fn apply_db_actions(
             .await?
             .is_none()
     {
-        // The item is still consumed either way, so record the uncharged fee.
+        // Fail closed: an item action that cannot charge its fee must not be applied, so the
+        // whole purchase/use rolls back instead of being granted for free.
         warn!(
             %guild_id,
             %user_id,
             item_id = %item.id,
             item_name = %item.name,
             deduction = actions.deduct_cash,
-            "item RemoveBalance could not charge the user; the item was still consumed"
+            "item RemoveBalance could not charge the user; aborting the transaction"
         );
+        return Err(sqlx::Error::RowNotFound);
     }
 
     for &(id, count) in &actions.add_items {
@@ -135,7 +137,10 @@ pub async fn apply_db_actions(
     }
 
     for &(id, count) in &actions.remove_items {
-        remove_inventory_item_tx(tx, guild_id, user_id, id, count).await?;
+        if remove_inventory_item_tx(tx, guild_id, user_id, id, count).await? == 0 {
+            // Fail closed: the player did not have enough of the item to satisfy the action.
+            return Err(sqlx::Error::RowNotFound);
+        }
     }
 
     Ok(())
