@@ -6,7 +6,8 @@ use crate::features::gambling::database::get_gambling_config;
 use crate::features::gambling::games::cards::{DEALER_LIMIT, Deck, Hand, Rank};
 use crate::features::gambling::validation::warn_non_player;
 use crate::features::gambling::{
-    GamblingConfig, release_gambling_cooldown, try_acquire_gambling_cooldown,
+    GamblingConfig, rearm_gambling_cooldown, release_gambling_cooldown,
+    try_acquire_gambling_cooldown,
 };
 use crate::shared::messages::send_ephemeral;
 use serenity::all::{
@@ -119,6 +120,7 @@ pub async fn blackjack(
     {
         let embed = render_game_embed(&ctx, &game, 0, Some(&outcome_text), false);
         ctx.send(poise::CreateReply::default().embed(embed)).await?;
+        rearm_gambling_cooldown(&ctx, &cfg).await;
         return Ok(());
     }
 
@@ -192,6 +194,8 @@ pub async fn blackjack(
                 .components(vec![]),
         )
         .await?;
+
+    rearm_gambling_cooldown(&ctx, &cfg).await;
 
     Ok(())
 }
@@ -281,9 +285,7 @@ async fn run_player_turns(
                     && game.player_hands[current_hand_idx].cards.len() == 2
                     && !game.player_hands[current_hand_idx].is_doubled
                     && !game.player_hands[current_hand_idx].is_stood;
-                if eligible
-                    && try_charge_extra_bet(ctx, game, "double", current_hand_idx).await?
-                {
+                if eligible && try_charge_extra_bet(ctx, game, "double", current_hand_idx).await? {
                     let hand = &mut game.player_hands[current_hand_idx];
                     hand.is_doubled = true;
                     hand.cards.push(game.deck.draw());
@@ -294,9 +296,7 @@ async fn run_player_turns(
                 let eligible = game.player_hands.len() == 1
                     && current_hand_idx == 0
                     && game.player_hands[0].can_split();
-                if eligible
-                    && try_charge_extra_bet(ctx, game, "split", current_hand_idx).await?
-                {
+                if eligible && try_charge_extra_bet(ctx, game, "split", current_hand_idx).await? {
                     split_first_hand(game, ctx);
                     // Special rule: Split aces only receive 1 card each
                     if game.player_hands[0]

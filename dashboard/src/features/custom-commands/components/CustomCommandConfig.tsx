@@ -65,7 +65,6 @@ export function CustomCommandConfig({
         type: "respond_current_channel",
         data: {
             is_dm: false,
-            is_ephemeral: false,
             message_layout: { messages: [defaultPayload], randomize: false },
         },
     };
@@ -94,7 +93,6 @@ export function CustomCommandConfig({
                 type: "respond_current_channel",
                 data: {
                     is_dm: false,
-                    is_ephemeral: false,
                     message_layout: {
                         messages: [updatedLayout],
                         randomize: false,

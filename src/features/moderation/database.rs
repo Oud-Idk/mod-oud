@@ -53,6 +53,34 @@ pub async fn log_moderation_action(
     action: ActionType,
     interval: Option<TimeDelta>,
 ) -> Result<()> {
+    log_moderation_action_by_id(
+        db,
+        guild_id,
+        user.map(|u| u.id),
+        moderator.id,
+        reason,
+        action,
+        interval,
+    )
+    .await
+}
+
+/// Same insert as [`log_moderation_action`], for callers that only know the snowflakes.
+///
+/// A moderation record must not depend on resolving the target's user object: a member who left,
+/// or a Discord outage, would otherwise skip the audit row after the action already happened.
+///
+/// # Errors
+/// Returns an error if the audit log insert fails.
+pub async fn log_moderation_action_by_id(
+    db: &PgPool,
+    guild_id: GuildId,
+    target_id: Option<UserId>,
+    moderator_id: UserId,
+    reason: Option<&str>,
+    action: ActionType,
+    interval: Option<TimeDelta>,
+) -> Result<()> {
     let pg_interval = interval.map(|delta| delta.to_pg_interval());
 
     sqlx::query!(
@@ -61,8 +89,8 @@ pub async fn log_moderation_action(
         VALUES ($1, $2, $3, $4, $5, $6)
         "#,
         guild_id.get().cast_signed(),
-        user.map(|u| u.id.get().cast_signed()),
-        moderator.id.get().cast_signed(),
+        target_id.map(|id| id.get().cast_signed()),
+        moderator_id.get().cast_signed(),
         action as ActionType,
         reason,
         pg_interval,

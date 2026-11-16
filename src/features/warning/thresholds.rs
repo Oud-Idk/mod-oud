@@ -4,6 +4,7 @@ use crate::features::warning::audit;
 use crate::features::warning::types::{WarnAction, WarnThreshold};
 use serenity::all::{Http, Member, Timestamp};
 use sqlx::PgPool;
+use std::collections::HashSet;
 use std::sync::Arc;
 use tracing::debug;
 
@@ -62,7 +63,9 @@ pub async fn apply_threshold_actions(
                 }
                 WarnAction::RoleAdd => {
                     if let Some(ref roles) = threshold.roles_to_add {
-                        for role_id in roles {
+                        // Config may list the same role twice; one REST call per role is enough.
+                        let mut seen = HashSet::new();
+                        for role_id in roles.iter().filter(|id| seen.insert(**id)) {
                             member.add_role(http, *role_id).await?;
                             audit::threshold_role_added(
                                 threshold.guild_id,
@@ -76,7 +79,8 @@ pub async fn apply_threshold_actions(
                 }
                 WarnAction::RoleRemove => {
                     if let Some(ref roles) = threshold.roles_to_remove {
-                        for role_id in roles {
+                        let mut seen = HashSet::new();
+                        for role_id in roles.iter().filter(|id| seen.insert(**id)) {
                             member.remove_role(http, *role_id).await?;
                             audit::threshold_role_removed(
                                 threshold.guild_id,

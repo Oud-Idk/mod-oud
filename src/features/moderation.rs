@@ -24,7 +24,9 @@ pub use commands::category::delete_category;
 pub use commands::lockdown::{global_lock, global_unlock, lock, unlock};
 
 // For warnings
-pub use database::{log_external_moderation_action, log_moderation_action};
+pub use database::{
+    log_external_moderation_action, log_moderation_action, log_moderation_action_by_id,
+};
 pub use events::handle_audit_log_entry;
 // For reporting
 pub use perms::check_hierarchy_in;

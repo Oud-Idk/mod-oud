@@ -6,7 +6,10 @@ use crate::features::gambling::database::get_gambling_config;
 use crate::features::gambling::games::cards::{Card, Deck};
 use crate::features::gambling::games::higherlower::{Guess, is_correct, payout_for_streak};
 use crate::features::gambling::validation::warn_non_player;
-use crate::features::gambling::{release_gambling_cooldown, try_acquire_gambling_cooldown};
+use crate::features::gambling::{
+    GamblingConfig, rearm_gambling_cooldown, release_gambling_cooldown,
+    try_acquire_gambling_cooldown,
+};
 use crate::shared::messages::send_ephemeral;
 use serenity::all::{
     ButtonStyle, CreateActionRow, CreateButton, CreateEmbed, CreateInteractionResponse,
@@ -31,7 +34,7 @@ pub async fn higherlower(
     ctx: Context<'_>,
     #[description = "The amount to bet"] bet: i64,
 ) -> Result<(), Error> {
-    let Some((timeout_secs, max_streak)) = preflight(&ctx, bet).await? else {
+    let Some((cfg, timeout_secs, max_streak)) = preflight(&ctx, bet).await? else {
         return Ok(());
     };
 
@@ -136,12 +139,17 @@ pub async fn higherlower(
         }
     }
 
+    rearm_gambling_cooldown(&ctx, &cfg).await;
+
     Ok(())
 }
 
 /// Validates the command and acquires the cooldown. `None` means the player has been told why
 /// they cannot play, and the caller must stop without touching any balance.
-async fn preflight(ctx: &Context<'_>, bet: i64) -> Result<Option<(u64, u32)>, Error> {
+async fn preflight(
+    ctx: &Context<'_>,
+    bet: i64,
+) -> Result<Option<(GamblingConfig, u64, u32)>, Error> {
     let Some(cfg) = get_gambling_config(ctx).await? else {
         send_ephemeral(ctx, "Gambling is disabled in this server.").await?;
         return Ok(None);
@@ -163,6 +171,7 @@ async fn preflight(ctx: &Context<'_>, bet: i64) -> Result<Option<(u64, u32)>, Er
         return Ok(None);
     }
     Ok(Some((
+        cfg.clone(),
         cfg.effective_timeout_secs(),
         cfg.higherlower.effective_max_streak(),
     )))

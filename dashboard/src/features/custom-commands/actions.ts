@@ -5,13 +5,15 @@ import redis from "@/lib/redis";
 import { z } from "zod";
 
 import { CustomCommand, SaveCustomCommandData, SaveCustomCommandSchema, CustomPrefixConfig, customPrefixSchema } from "@/features/custom-commands/types";
-import { deleteCustomCommand, saveCustomCommand, saveCustomPrefix } from "@/features/custom-commands/queries";
+import { deleteCustomCommand, getCustomCommandName, saveCustomCommand, saveCustomPrefix } from "@/features/custom-commands/queries";
 import { verifyGuildAccess } from "@/features/_shared/guild";
 
-async function invalidateCommandCache(guildId: string, commandName?: string): Promise<void> {
-    const keys = [`cmd_anywhere:${guildId}`];
-    if (commandName !== undefined && commandName.trim() !== "") {
-        keys.push(`cmd:${guildId}:${commandName.toLowerCase()}`);
+async function invalidateCommandCache(guildId: string, ...commandNames: (string | undefined | null)[]): Promise<void> {
+    const keys = new Set<string>([`cmd_anywhere:${guildId}`]);
+    for (const name of commandNames) {
+        if (name !== undefined && name !== null && name.trim() !== "") {
+            keys.add(`cmd:${guildId}:${name.toLowerCase()}`);
+        }
     }
     try {
         await redis.del(...keys);
@@ -26,9 +28,14 @@ export async function saveCustomCommandAction(guildId: string, config: SaveCusto
 
         SaveCustomCommandSchema.parse(config);
 
+        // A rename leaves the old key behind, and the bot would keep serving the old command
+        // from it until the cache expires.
+        const previousName =
+            config.id !== undefined ? await getCustomCommandName(guildId, config.id) : null;
+
         const ret = await saveCustomCommand(guildId, config);
 
-        await invalidateCommandCache(guildId, ret.name);
+        await invalidateCommandCache(guildId, previousName, ret.name);
 
         revalidatePath(`/dashboard/${guildId}/custom-commands`);
         return ret;
@@ -48,9 +55,12 @@ export async function deleteCustomCommandAction(guildId: string, id: number, com
     try {
         await verifyGuildAccess(guildId);
 
+        // The name is read from the row so the key is evicted even when the caller omits it.
+        const storedName = await getCustomCommandName(guildId, id);
+
         const ret = await deleteCustomCommand(id, guildId);
 
-        await invalidateCommandCache(guildId, commandName);
+        await invalidateCommandCache(guildId, storedName, commandName);
 
         revalidatePath(`/dashboard/${guildId}/custom-commands`);
         return ret;

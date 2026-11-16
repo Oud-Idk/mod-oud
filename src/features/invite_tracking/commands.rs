@@ -51,21 +51,29 @@ pub async fn invites(
     let target_id = target_user.id;
 
     let invite_count = database::get_user_invite_count(&core.db, guild_id, target_id).await?;
-    let active_codes = cache::get_user_invite_codes(&core.redis, guild_id, target_id).await;
 
-    // 3 Format message
-    let invite_link_msg = match active_codes.len() {
-        0 => "No active personal invite link found in cache. Create one in Discord to get one!"
-            .to_string(),
-        1 => format!("Active invite link: https://discord.gg/{}", active_codes[0]),
-        _ => {
-            let links = active_codes
-                .iter()
-                .map(|code| format!("• https://discord.gg/{code}"))
-                .collect::<Vec<_>>()
-                .join("\n");
-            format!("Active invite links:\n{links}")
+    // Invite codes are only shown to their owner, or to a moderator who may manage invites.
+    let is_self = target_id == ctx.author().id;
+    let may_manage = is_self || caller_may_manage_invites(&ctx, guild_id).await;
+
+    let invite_link_msg = if may_manage {
+        let active_codes = cache::get_user_invite_codes(&core.redis, guild_id, target_id).await;
+        match active_codes.len() {
+            0 => "No active personal invite link found in cache. Create one in Discord to get one!"
+                .to_string(),
+            1 => format!("Active invite link: https://discord.gg/{}", active_codes[0]),
+            _ => {
+                let links = active_codes
+                    .iter()
+                    .map(|code| format!("• https://discord.gg/{code}"))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                format!("Active invite links:\n{links}")
+            }
         }
+    } else {
+        "Invite links are private. Run this command again without a member to see your own."
+            .to_string()
     };
 
     ctx.say(format!(
@@ -74,6 +82,44 @@ pub async fn invites(
         .await?;
 
     Ok(())
+}
+
+/// Returns whether the caller holds permission to manage invites in the guild.
+async fn caller_may_manage_invites(ctx: &Context<'_>, guild_id: serenity::all::GuildId) -> bool {
+    // The cache hands out references that are not `Send`, so everything is cloned out of it
+    // before the HTTP fallback can await.
+    let cached = ctx.cache().guild(guild_id).map(|guild| {
+        (
+            guild.owner_id,
+            guild.roles.clone(),
+            guild.members.get(&ctx.author().id).cloned(),
+        )
+    });
+
+    let (owner_id, roles, caller) = if let Some(cached) = cached {
+        cached
+    } else {
+        let guild = match guild_id.to_partial_guild(ctx).await {
+            Ok(guild) => guild,
+            Err(e) => {
+                tracing::warn!(error = %e, %guild_id, "guild lookup for invite permissions failed");
+                return false;
+            }
+        };
+        (guild.owner_id, guild.roles, None)
+    };
+
+    let Some(caller) = caller else {
+        return false;
+    };
+
+    crate::shared::permissions::has_permissions(
+        &caller,
+        guild_id,
+        owner_id,
+        &roles,
+        serenity::all::Permissions::MANAGE_GUILD,
+    )
 }
 
 /// Display the invites leaderboard

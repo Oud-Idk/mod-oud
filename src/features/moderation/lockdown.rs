@@ -6,7 +6,7 @@ use anyhow::Context as _;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serenity::all::{
-    ChannelId, ChannelType, Context as SerenityContext, GuildChannel, GuildId, PermissionOverwrite,
+    ChannelType, Context as SerenityContext, GuildChannel, GuildId, PermissionOverwrite,
     PermissionOverwriteType, Permissions, RoleId,
 };
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -66,16 +66,17 @@ pub async fn save_pre_lockdown_state(
 }
 
 /// Restores the channel's `@everyone` overwrite to whatever it was before lockdown,
-/// using the Redis snapshot. Falls back to deleting the overwrite entirely if no
-/// snapshot is present at all (e.g. the channel was never locked, or was already
-/// restored and unlocked a second time).
+/// using the Redis snapshot. Without a snapshot (never locked, or a second unlock), the
+/// lockdown deny bits are cleared from the current overwrite instead of deleting it, so
+/// unrelated permissions configured on the channel survive.
 pub async fn restore_pre_lockdown_state(
     ctx: &SerenityContext,
     data: &BotData,
     guild_id: GuildId,
-    channel_id: ChannelId,
-    everyone_role_id: RoleId,
+    channel: &GuildChannel,
 ) -> Result<()> {
+    let everyone_role_id = RoleId::new(guild_id.get());
+    let channel_id = channel.id;
     let key = keys::lockdown_redis_key(guild_id, channel_id);
     let cached: Option<String> =
         cache::get_pre_lockdown_state(&data.core.redis, key.clone()).await?;
@@ -102,15 +103,29 @@ pub async fn restore_pre_lockdown_state(
             }
         }
         cache::delete_pre_lockdown_state(&data.core.redis, key).await?;
-    } else {
-        debug!(
-            channel_id = channel_id.get(),
-            "no cached state found; deleting the overwrite entirely"
-        );
-        channel_id
-            .delete_permission(&ctx.http, PermissionOverwriteType::Role(everyone_role_id))
-            .await?;
+        return Ok(());
     }
+
+    debug!(
+        channel_id = channel_id.get(),
+        "no cached state found; clearing only the lockdown permissions"
+    );
+
+    let target_kind = PermissionOverwriteType::Role(everyone_role_id);
+    let Some(existing) = channel
+        .permission_overwrites
+        .iter()
+        .find(|o| o.kind == target_kind)
+    else {
+        return Ok(());
+    };
+
+    let overwrite = PermissionOverwrite {
+        allow: existing.allow,
+        deny: existing.deny & !lockdown_deny_permissions(channel.kind),
+        kind: target_kind,
+    };
+    channel_id.create_permission(&ctx.http, overwrite).await?;
 
     Ok(())
 }
@@ -243,7 +258,6 @@ pub async fn apply_global_unlock(
         return Ok(None);
     };
 
-    let everyone_role_id = RoleId::new(guild_id.get());
     let channels = guild_id.channels(&ctx.http).await?;
     let mut report = GlobalLockdownReport::default();
 
@@ -255,7 +269,7 @@ pub async fn apply_global_unlock(
         }
         let channel_id = channel.id.get();
 
-        match restore_pre_lockdown_state(ctx, data, guild_id, channel.id, everyone_role_id).await {
+        match restore_pre_lockdown_state(ctx, data, guild_id, &channel).await {
             Ok(()) => {
                 report.succeeded += 1;
                 debug!(channel_id, "lockdown removed from channel");
@@ -313,13 +327,7 @@ pub fn calculate_lockdown_overwrite(
     channel: &GuildChannel,
     everyone_role_id: RoleId,
 ) -> PermissionOverwrite {
-    let mut lockdown_deny = Permissions::SEND_MESSAGES
-        | Permissions::SEND_MESSAGES_IN_THREADS
-        | Permissions::ADD_REACTIONS;
-
-    if matches!(channel.kind, ChannelType::Voice | ChannelType::Stage) {
-        lockdown_deny |= Permissions::CONNECT | Permissions::SPEAK;
-    }
+    let lockdown_deny = lockdown_deny_permissions(channel.kind);
 
     let target_kind = PermissionOverwriteType::Role(everyone_role_id);
     let existing = channel
@@ -332,4 +340,16 @@ pub fn calculate_lockdown_overwrite(
         deny: existing.map_or_else(Permissions::empty, |o| o.deny) | lockdown_deny,
         kind: target_kind,
     }
+}
+
+fn lockdown_deny_permissions(channel_kind: ChannelType) -> Permissions {
+    let mut deny = Permissions::SEND_MESSAGES
+        | Permissions::SEND_MESSAGES_IN_THREADS
+        | Permissions::ADD_REACTIONS;
+
+    if matches!(channel_kind, ChannelType::Voice | ChannelType::Stage) {
+        deny |= Permissions::CONNECT | Permissions::SPEAK;
+    }
+
+    deny
 }

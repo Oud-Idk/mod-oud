@@ -163,7 +163,6 @@ export function CustomCommandsBody({
                                 type: "respond_current_channel",
                                 data: {
                                     is_dm: false,
-                                    is_ephemeral: false,
                                     message_layout: {
                                         messages: [
                                             {

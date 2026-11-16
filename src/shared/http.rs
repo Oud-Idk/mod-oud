@@ -87,9 +87,7 @@ pub fn safe_reqwest_error(e: &reqwest::Error) -> String {
         parts.push("unspecified".to_string());
     }
     parts.join(", ")
-} // ---------------------------------------------------------------------------
-// SSRF Protection & Safe HTTP Client
-// ---------------------------------------------------------------------------
+}
 
 /// Evaluates whether an IP address belongs to a private, loopback, link-local,
 /// or reserved network.

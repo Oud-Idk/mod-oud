@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT sm.starboard_message_id, s.starboard_channel_id, s.keep_deleted_messages\n        FROM starred_messages sm\n        JOIN starboards s ON sm.starboard_id = s.id\n        WHERE sm.original_message_id = $1\n        ",
+  "query": "\n        SELECT sm.starboard_message_id, sm.channel_id AS starboard_channel_id, s.keep_deleted_messages\n        FROM starred_messages sm\n        JOIN starboards s ON sm.starboard_id = s.id\n        WHERE sm.original_message_id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -20,8 +20,8 @@
         "type_info": "Int8",
         "origin": {
           "Table": {
-            "table": "starboards",
-            "name": "starboard_channel_id"
+            "table": "starred_messages",
+            "name": "channel_id"
           }
         }
       },
@@ -48,5 +48,5 @@
       false
     ]
   },
-  "hash": "251766c7f96bdf06c4bc22deef4f6efbce9f1d8a553325f00e9ac95894c3d5a7"
+  "hash": "3132e95dbd595457fc3c1a9dce87d6d32b3bccb3d398a5e355f19e5a7ab3c685"
 }

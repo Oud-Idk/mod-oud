@@ -110,10 +110,6 @@ pub async fn view(
     Ok(())
 }
 
-fn fallback<'a>(val: &'a str, default: &'a str) -> &'a str {
-    if val.trim().is_empty() { default } else { val }
-}
-
 #[allow(clippy::cast_precision_loss)]
 fn format_compact(num: u64) -> String {
     match NumberPrefix::decimal(num as f64) {
@@ -177,13 +173,13 @@ pub async fn card(
         return Ok(());
     };
 
-    let bg_color = fallback(&card.background_color, "#000000");
-    let bar_foreground = fallback(&card.bar_foreground_color, "#5865F2");
-    let bar_background = fallback(&card.bar_background_color, "#dedede");
-    let line_sep = fallback(&card.line_separator_color, "#5865F2");
-    let username_color = fallback(&card.username_color, "#5865F2");
-    let stats_color = fallback(&card.statistics_color, "#5865F2");
-    let accent_color = fallback(&card.accent_color, "#5865F2");
+    let bg_color = &card.background_color;
+    let bar_foreground = &card.bar_foreground_color;
+    let bar_background = &card.bar_background_color;
+    let line_sep = &card.line_separator_color;
+    let username_color = &card.username_color;
+    let stats_color = &card.statistics_color;
+    let accent_color = &card.accent_color;
 
     let avatar_url = target_user.face();
     let profile_picture = fetch_avatar_data_uri(&avatar_url)
@@ -199,15 +195,15 @@ pub async fn card(
     let formatted_max_xp = format_compact(max_xp);
 
     let svg = SvgTemplate::new(svg_template)
-        .set_raw("BACKGROUND_COLOR", bg_color)
+        .set_color("BACKGROUND_COLOR", bg_color, "#000000")
         .set_text("USERNAME", display_name)
-        .set_raw("BAR.FOREGROUND", bar_foreground)
-        .set_raw("BAR.BACKGROUND", bar_background)
-        .set_raw("SEPARATOR", line_sep)
+        .set_color("BAR.FOREGROUND", bar_foreground, "#5865F2")
+        .set_color("BAR.BACKGROUND", bar_background, "#dedede")
+        .set_color("SEPARATOR", line_sep, "#5865F2")
         .set_raw("PROFILE_PICTURE", &profile_picture)
-        .set_raw("USERNAME_COLOR", username_color)
-        .set_raw("STATISTICS", stats_color)
-        .set_raw("ACCENT", accent_color)
+        .set_color("USERNAME_COLOR", username_color, "#5865F2")
+        .set_color("STATISTICS", stats_color, "#5865F2")
+        .set_color("ACCENT", accent_color, "#5865F2")
         .set_raw("LEVEL", level)
         .set_raw("XP.PROGRESS", formatted_xp)
         .set_raw("XP.MAX", formatted_max_xp)

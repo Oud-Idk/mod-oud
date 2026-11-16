@@ -69,14 +69,12 @@ pub async fn unlock(
     let meta = GuildMetadata::extract(&ctx)?;
     let target_channel = lockdown::resolve_target_channel(&ctx, channel).await?;
     let target_channel_id = target_channel.id.get();
-    let everyone_role_id = RoleId::new(meta.id.get());
 
     lockdown::restore_pre_lockdown_state(
         ctx.serenity_context(),
         ctx.data(),
         meta.id,
-        target_channel.id,
-        everyone_role_id,
+        &target_channel,
     )
     .await?;
 

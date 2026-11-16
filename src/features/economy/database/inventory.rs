@@ -351,8 +351,8 @@ pub async fn remove_inventory_item_tx(
         item_id,
         quantity
     )
-        .fetch_optional(&mut **tx)
-        .await?;
+    .fetch_optional(&mut **tx)
+    .await?;
 
     Ok(if result.is_some() { 1 } else { 0 })
 }

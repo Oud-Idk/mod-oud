@@ -314,46 +314,131 @@ async fn current_overwrites(
     }
 }
 
-/// Service: Lock a temporary voice channel by denying CONNECT to @everyone.
+/// A channel's own overwrites plus the ones it inherits from its category.
+struct OverwriteScope {
+    channel: Vec<PermissionOverwrite>,
+    category: Vec<PermissionOverwrite>,
+}
+
+async fn read_overwrite_scope(
+    http: &Http,
+    channel_id: ChannelId,
+) -> Result<Option<OverwriteScope>, Error> {
+    match channel_id.to_channel(http).await {
+        Ok(serenity::all::Channel::Guild(channel)) => {
+            let category = match channel.parent_id {
+                Some(parent) => current_overwrites(http, parent).await?.unwrap_or_default(),
+                None => Vec::new(),
+            };
+            Ok(Some(OverwriteScope {
+                channel: channel.permission_overwrites,
+                category,
+            }))
+        }
+        Ok(_) => Ok(None),
+        Err(serenity::Error::Http(http_err))
+            if http_err.status_code() == Some(serenity::all::StatusCode::NOT_FOUND) =>
+        {
+            Ok(None)
+        }
+        Err(e) => Err(e.into()),
+    }
+}
+
+/// One overwrite as it was before the lock, so unlock can put it back exactly.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct LockSnapshotEntry {
+    role_id: u64,
+    allow: u64,
+    deny: u64,
+    /// `false` when the overwrite did not exist and unlock should delete it again.
+    existed: bool,
+}
+
+impl LockSnapshotEntry {
+    fn capture(existing: Option<&PermissionOverwrite>, role_id: RoleId) -> Self {
+        Self {
+            role_id: role_id.get(),
+            allow: existing.map_or(0, |o| o.allow.bits()),
+            deny: existing.map_or(0, |o| o.deny.bits()),
+            existed: existing.is_some(),
+        }
+    }
+
+    const fn kind(&self) -> PermissionOverwriteType {
+        PermissionOverwriteType::Role(RoleId::new(self.role_id))
+    }
+}
+
+/// Service: Lock a temporary voice channel by denying CONNECT to everyone without an explicit
+/// member allow.
 ///
-/// Only the CONNECT bits are touched. Replacing the overwrite outright would also drop the
-/// `VIEW_CHANNEL` denial that keeps a private room private.
+/// A role overwrite that allows CONNECT wins over the `@everyone` denial, whether it is set on the
+/// channel or inherited from the category, so every such role gets its own deny. Member overwrites
+/// are left alone: those are the trusted users who keep access while the room is locked.
 pub async fn lock_temp_vc(
     http: &Http,
+    redis: &RedisClient,
     guild_id: GuildId,
     channel_id: ChannelId,
 ) -> Result<String, Error> {
-    let target = PermissionOverwriteType::Role(RoleId::new(guild_id.get()));
-
-    let mut overwrite = match current_overwrites(http, channel_id).await {
-        Ok(Some(overwrites)) => overwrites
-            .into_iter()
-            .find(|o| o.kind == target)
-            .unwrap_or_else(|| PermissionOverwrite {
-                allow: Permissions::empty(),
-                deny: Permissions::empty(),
-                kind: target,
-            }),
-        Ok(None) => {
-            tracing::warn!(%channel_id, "voice channel gone; lock skipped");
-            return Ok("This channel no longer exists.".to_string());
-        }
-        Err(e) => {
-            tracing::warn!(
-                error = ?e,
-                %channel_id,
-                "overwrite lookup failed; locking would drop existing restrictions"
-            );
-            return Ok(
-                "Could not read this channel's permissions, so it was not locked.".to_string(),
-            );
-        }
+    let Some(scope) = read_overwrite_scope(http, channel_id).await? else {
+        tracing::warn!(%channel_id, "voice channel gone; lock skipped");
+        return Ok("This channel no longer exists.".to_string());
     };
 
-    overwrite.allow.remove(Permissions::CONNECT);
-    overwrite.deny.insert(Permissions::CONNECT);
+    let everyone_kind = PermissionOverwriteType::Role(RoleId::new(guild_id.get()));
+    let mut snapshot = Vec::new();
 
-    channel_id.create_permission(http, overwrite).await?;
+    let existing_everyone = scope.channel.iter().find(|o| o.kind == everyone_kind);
+    snapshot.push(LockSnapshotEntry::capture(
+        existing_everyone,
+        RoleId::new(guild_id.get()),
+    ));
+
+    let mut everyone = existing_everyone.cloned().unwrap_or(PermissionOverwrite {
+        allow: Permissions::empty(),
+        deny: Permissions::empty(),
+        kind: everyone_kind,
+    });
+    everyone.allow.remove(Permissions::CONNECT);
+    everyone.deny.insert(Permissions::CONNECT);
+    channel_id.create_permission(http, everyone).await?;
+
+    let mut seen_roles = std::collections::HashSet::new();
+    let allowed_roles: Vec<RoleId> = scope
+        .channel
+        .iter()
+        .chain(scope.category.iter())
+        .filter(|o| o.allow.contains(Permissions::CONNECT))
+        .filter_map(|o| match o.kind {
+            PermissionOverwriteType::Role(role)
+                if role.get() != guild_id.get() && seen_roles.insert(role.get()) =>
+            {
+                Some(role)
+            }
+            _ => None,
+        })
+        .collect();
+
+    for role_id in &allowed_roles {
+        let kind = PermissionOverwriteType::Role(*role_id);
+        let existing = scope.channel.iter().find(|o| o.kind == kind);
+        snapshot.push(LockSnapshotEntry::capture(existing, *role_id));
+
+        let mut overwrite = existing.cloned().unwrap_or(PermissionOverwrite {
+            allow: Permissions::empty(),
+            deny: Permissions::empty(),
+            kind,
+        });
+        overwrite.allow.remove(Permissions::CONNECT);
+        overwrite.deny.insert(Permissions::CONNECT);
+        channel_id.create_permission(http, overwrite).await?;
+        tracing::debug!(%channel_id, %role_id, "role CONNECT allow denied for the lock");
+    }
+
+    let json = serde_json::to_string(&snapshot)?;
+    cache::store_lock_snapshot(redis, channel_id, json).await?;
 
     tracing::debug!(%guild_id, %channel_id, "voice channel locked");
 
@@ -363,36 +448,86 @@ pub async fn lock_temp_vc(
     )
 }
 
-/// Service: Unlock a temporary voice channel by clearing the @everyone CONNECT denial.
+/// Service: Unlock a temporary voice channel by restoring the pre-lock overwrites.
 ///
-/// The overwrite is kept and only CONNECT is restored, so a private room stays private.
+/// The snapshot is what keeps a private room private and an unrelated role deny intact, so it is
+/// preferred over guessing. Without one, only the CONNECT denials this lock writes are cleared.
 pub async fn unlock_temp_vc(
     http: &Http,
+    redis: &RedisClient,
     guild_id: GuildId,
     channel_id: ChannelId,
 ) -> Result<String, Error> {
-    let target = PermissionOverwriteType::Role(RoleId::new(guild_id.get()));
+    let everyone_kind = PermissionOverwriteType::Role(RoleId::new(guild_id.get()));
 
-    let existing = match current_overwrites(http, channel_id).await {
-        Ok(Some(overwrites)) => overwrites.into_iter().find(|o| o.kind == target),
-        Ok(None) => None,
-        Err(e) => {
-            tracing::warn!(error = ?e, %channel_id, "overwrite lookup failed; unlock skipped");
-            return Ok(
-                "Could not read this channel's permissions, so it was not unlocked.".to_string(),
-            );
+    let snapshot = cache::get_lock_snapshot(redis, channel_id)
+        .await?
+        .and_then(|json| serde_json::from_str::<Vec<LockSnapshotEntry>>(&json).ok());
+
+    if let Some(entries) = snapshot {
+        for entry in entries {
+            let kind = entry.kind();
+            if entry.existed {
+                let overwrite = PermissionOverwrite {
+                    allow: Permissions::from_bits_retain(entry.allow),
+                    deny: Permissions::from_bits_retain(entry.deny),
+                    kind,
+                };
+                channel_id.create_permission(http, overwrite).await?;
+            } else if let Err(e) = channel_id.delete_permission(http, kind).await
+                && !matches!(
+                    &e,
+                    serenity::Error::Http(http_err)
+                        if http_err.status_code() == Some(serenity::all::StatusCode::NOT_FOUND)
+                )
+            {
+                return Err(e.into());
+            }
         }
-    };
-
-    if let Some(mut overwrite) = existing {
-        overwrite.deny.remove(Permissions::CONNECT);
-        overwrite.allow.remove(Permissions::CONNECT);
-        channel_id.create_permission(http, overwrite).await?;
+        cache::delete_lock_snapshot(redis, channel_id).await?;
+    } else {
+        tracing::warn!(
+            %channel_id,
+            fallback = "clear CONNECT denials only",
+            "no lock snapshot found; the channel was not locked by this bot"
+        );
+        clear_connect_denials(http, channel_id, everyone_kind).await?;
     }
 
     tracing::debug!(%guild_id, %channel_id, "voice channel unlocked");
 
     Ok("This channel is now **unlocked** and open for everyone to join.".to_string())
+}
+
+/// Clears CONNECT from `@everyone` and from role overwrites that deny it, touching nothing else.
+async fn clear_connect_denials(
+    http: &Http,
+    channel_id: ChannelId,
+    everyone_kind: PermissionOverwriteType,
+) -> Result<(), Error> {
+    let Some(overwrites) = current_overwrites(http, channel_id).await? else {
+        return Ok(());
+    };
+
+    for mut overwrite in overwrites {
+        let is_everyone = overwrite.kind == everyone_kind;
+        let is_role_deny = matches!(overwrite.kind, PermissionOverwriteType::Role(_))
+            && overwrite.deny.contains(Permissions::CONNECT)
+            && !overwrite.allow.contains(Permissions::CONNECT);
+
+        if !is_everyone && !is_role_deny {
+            continue;
+        }
+        if !overwrite.deny.contains(Permissions::CONNECT) {
+            continue;
+        }
+
+        overwrite.deny.remove(Permissions::CONNECT);
+        overwrite.allow.remove(Permissions::CONNECT);
+        channel_id.create_permission(http, overwrite).await?;
+    }
+
+    Ok(())
 }
 
 /// Service: Trust users in a temporary voice channel by allowing CONNECT

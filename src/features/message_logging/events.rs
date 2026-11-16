@@ -12,6 +12,11 @@ use serenity::all::{ChannelId, Context, GuildId, MessageAction, MessageId, UserI
 use std::sync::Arc;
 use tracing::{debug, error, instrument, warn};
 
+/// Discord writes the audit log entry shortly after the gateway event, so a delete that arrives
+/// first needs at least one retry before the attribution is given up on.
+const AUDIT_LOG_DELAY_MS: u64 = 900;
+const AUDIT_LOG_ATTEMPTS: usize = 2;
+
 #[instrument(
     skip(ctx, audit_cache),
     fields(
@@ -27,14 +32,22 @@ async fn determine_deleter(
     author_id: UserId,
     audit_cache: &Cache<GuildId, Arc<CachedAuditLogs>>,
 ) -> Option<(UserId, String)> {
-    let cached_logs = audit_cache.get(&guild_id).await;
-
-    let audit_data = if let Some(data) = cached_logs {
+    if let Some(cached) = audit_cache.get(&guild_id).await {
         debug!("using cached audit logs for deleter lookup");
-        data
-    } else {
-        debug!("audit logs cache miss; the discord api query is delayed 800ms");
-        tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+        if let Some(found) = find_deleter(ctx, channel_id, author_id, &cached).await {
+            return Some(found);
+        }
+        // A cached payload can predate the entry for a delete that just happened, so a miss here
+        // is not proof the delete was unattributed.
+        debug!("no matching deleter in cached audit logs; querying fresh ones");
+    }
+
+    for attempt in 1..=AUDIT_LOG_ATTEMPTS {
+        debug!(
+            attempt,
+            "querying audit logs after the gateway delete event"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(AUDIT_LOG_DELAY_MS)).await;
 
         let audit_logs = match guild_id
             .audit_logs(
@@ -48,7 +61,7 @@ async fn determine_deleter(
         {
             Ok(logs) => logs,
             Err(e) => {
-                warn!(error = %e, "message delete audit log retrieval failed");
+                warn!(error = %e, attempt, "message delete audit log retrieval failed");
                 return None;
             }
         };
@@ -58,10 +71,26 @@ async fn determine_deleter(
             users: audit_logs.users,
         });
 
-        audit_cache.insert(guild_id, data.clone()).await;
-        data
-    };
+        let found = find_deleter(ctx, channel_id, author_id, &data).await;
+        audit_cache.insert(guild_id, data).await;
 
+        if found.is_some() {
+            return found;
+        }
+        debug!(attempt, "no matching audit log entry yet");
+    }
+
+    debug!("no matching audit log entry found for message delete event");
+    None
+}
+
+/// Returns the deleter of `author_id`'s message in `channel_id` from one audit log payload.
+async fn find_deleter(
+    ctx: &Context,
+    channel_id: ChannelId,
+    author_id: UserId,
+    audit_data: &CachedAuditLogs,
+) -> Option<(UserId, String)> {
     for entry in &audit_data.entries {
         let target_matches = entry
             .target_id
@@ -88,7 +117,6 @@ async fn determine_deleter(
         }
     }
 
-    debug!("no matching audit log entry found for message delete event");
     None
 }
 

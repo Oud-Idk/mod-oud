@@ -8,7 +8,7 @@ use crate::features::moderation::{
 };
 use crate::features::warning::audit;
 use crate::features::warning::database::{
-    delete_warn, fetch_warn_thresholds, insert_warn, log_warning, update_warn,
+    delete_warn, fetch_warn_thresholds, insert_warn, log_warning_by_id, update_warn,
 };
 use crate::features::warning::thresholds;
 use crate::features::warning::types::{MODERATION_FOOTER, WarnThreshold};
@@ -51,6 +51,11 @@ pub async fn issue_warning(
     let (warn_id, warn_count) = insert_warn(db, guild_id, user_id, moderator_id, reason).await?;
 
     audit::warning_issued(guild_id, user_id, moderator_id, warn_id, warn_count);
+
+    // The record and its audit row land before any Discord lookup, so a member who left (404 on
+    // fetch) cannot leave a warn with no moderation log behind.
+    log_warning_by_id(db, guild_id, user_id, moderator_id, reason).await?;
+
     let (gctx, mut member, settings) =
         fetch_mod_ctx!(db, redis_conn, guild_configs, http, guild_id, user_id);
     let moderator_user = http
@@ -81,8 +86,6 @@ pub async fn issue_warning(
             embed
         }
     );
-
-    log_warning(db, guild_id, &member.user, &moderator_user, reason).await?;
 
     let thresholds = fetch_warn_thresholds(db, redis_conn, &guild_id).await?;
     let applicable_thresholds = thresholds

@@ -158,7 +158,6 @@ pub enum CommandAction {
     },
     RespondCurrentChannel {
         is_dm: bool,
-        is_ephemeral: bool,
         message_layout: MessageLayout,
     },
     AddRole {

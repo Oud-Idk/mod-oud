@@ -47,11 +47,32 @@ pub async fn handle_accept_transfer(
         return Ok(());
     };
 
+    // Two acceptances can arrive together (a double click, or a stale interaction). Only the
+    // handler that claims the offer acts on it.
+    if !cache::claim_pending_transfer(redis, channel_id).await? {
+        debug!(
+            %channel_id,
+            acceptor_id = %interaction.user.id,
+            "transfer acceptance ignored; another handler already claimed the offer"
+        );
+        interaction
+            .create_response(
+                &ctx.http,
+                create_ephemeral_msg("This transfer offer is already being processed!"),
+            )
+            .await?;
+        return Ok(());
+    }
+
     // Apply Discord channel permission updates
     let permissions_applied =
         apply_transfer_permissions(ctx, channel_id, interaction.user.id, &current_owner).await?;
 
     if !permissions_applied {
+        // The offer is still wanted, so let the acceptor try again.
+        if let Err(e) = cache::release_pending_transfer_claim(redis, channel_id).await {
+            warn!(%channel_id, error = ?e, "pending transfer claim not released");
+        }
         interaction
             .create_response(
                 &ctx.http,
@@ -62,8 +83,15 @@ pub async fn handle_accept_transfer(
     }
 
     // Commit state change to Redis
-    cache::commit_transfer_to_redis(redis, guild_id, channel_id, &current_owner, &target_owner)
-        .await?;
+    if let Err(e) =
+        cache::commit_transfer_to_redis(redis, guild_id, channel_id, &current_owner, &target_owner)
+            .await
+    {
+        if let Err(release_err) = cache::release_pending_transfer_claim(redis, channel_id).await {
+            warn!(%channel_id, error = ?release_err, "pending transfer claim not released");
+        }
+        return Err(e);
+    }
 
     // The stored owner is a string, and the ownership change above has already committed. The
     // audit entry is the record of the action, so a hole in one is worth an operator seeing.
@@ -175,20 +203,55 @@ async fn validate_transfer_request(
 }
 
 /// Applies owner permissions to the new owner and demotes the previous owner.
-/// Returns `true` if successful, `false` if the new owner permissions failed to apply.
+///
+/// The demotion runs first and is fatal: committing the transfer with the old owner still holding
+/// channel powers is worse than not committing it at all. A failed new-owner grant restores the
+/// old owner so the channel is left exactly as it was.
+///
+/// Returns `true` if successful, `false` if the old owner could not be demoted or the new owner
+/// permissions failed to apply.
 async fn apply_transfer_permissions(
     ctx: &Context,
     channel_id: ChannelId,
     new_owner_id: UserId,
     current_owner_str: &str,
 ) -> Result<bool, Error> {
+    let owner_permissions = Permissions::VIEW_CHANNEL
+        | Permissions::CONNECT
+        | Permissions::MANAGE_CHANNELS
+        | Permissions::MOVE_MEMBERS
+        | Permissions::MUTE_MEMBERS
+        | Permissions::DEAFEN_MEMBERS;
+
+    let old_owner_id = current_owner_str.parse::<u64>().ok().map(UserId::new);
+
+    if let Some(old_owner_id) = old_owner_id
+        && old_owner_id != new_owner_id
+    {
+        let demoted = PermissionOverwrite {
+            allow: Permissions::VIEW_CHANNEL | Permissions::CONNECT,
+            deny: Permissions::empty(),
+            kind: PermissionOverwriteType::Member(old_owner_id),
+        };
+        if let Err(e) = channel_id.create_permission(&ctx.http, demoted).await {
+            warn!(
+                %channel_id,
+                %old_owner_id,
+                %new_owner_id,
+                error = ?e,
+                "old owner's permission demotion failed; transfer aborted"
+            );
+            return Ok(false);
+        }
+        debug!(
+            %channel_id,
+            %old_owner_id,
+            "old owner demoted to member-level permissions"
+        );
+    }
+
     let new_overwrite = PermissionOverwrite {
-        allow: Permissions::VIEW_CHANNEL
-            | Permissions::CONNECT
-            | Permissions::MANAGE_CHANNELS
-            | Permissions::MOVE_MEMBERS
-            | Permissions::MUTE_MEMBERS
-            | Permissions::DEAFEN_MEMBERS,
+        allow: owner_permissions,
         deny: Permissions::empty(),
         kind: PermissionOverwriteType::Member(new_owner_id),
     };
@@ -200,35 +263,27 @@ async fn apply_transfer_permissions(
             error = ?e,
             "new owner channel permission not applied"
         );
+        if let Some(old_owner_id) = old_owner_id
+            && old_owner_id != new_owner_id
+        {
+            let restored = PermissionOverwrite {
+                allow: owner_permissions,
+                deny: Permissions::empty(),
+                kind: PermissionOverwriteType::Member(old_owner_id),
+            };
+            if let Err(restore_err) = channel_id.create_permission(&ctx.http, restored).await {
+                warn!(
+                    %channel_id,
+                    %old_owner_id,
+                    error = ?restore_err,
+                    "old owner's permissions could not be restored after a failed transfer"
+                );
+            }
+        }
         return Ok(false);
     }
 
     debug!(%channel_id, %new_owner_id, "new owner channel permission applied");
-
-    if let Ok(old_owner_id) = current_owner_str.parse::<u64>() {
-        let old_owner_overwrite = PermissionOverwrite {
-            allow: Permissions::VIEW_CHANNEL | Permissions::CONNECT,
-            deny: Permissions::empty(),
-            kind: PermissionOverwriteType::Member(UserId::new(old_owner_id)),
-        };
-        if let Err(e) = channel_id
-            .create_permission(&ctx.http, old_owner_overwrite)
-            .await
-        {
-            warn!(
-                %channel_id,
-                old_owner_id,
-                error = ?e,
-                "old owner's permission demotion failed"
-            );
-        } else {
-            debug!(
-                %channel_id,
-                old_owner_id,
-                "old owner demoted to member-level permissions"
-            );
-        }
-    }
 
     Ok(true)
 }

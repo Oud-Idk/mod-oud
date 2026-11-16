@@ -1,9 +1,9 @@
-use crate::features::moderation::{ActionType, log_moderation_action};
+use crate::features::moderation::{ActionType, log_moderation_action_by_id};
 use crate::features::warning::cache;
 use crate::features::warning::types::{PartialWarning, WarnAction, WarnThreshold, WarningInfo};
 use anyhow::Result;
 use fred::clients::Client;
-use serenity::all::{GuildId, RoleId, User, UserId};
+use serenity::all::{GuildId, RoleId, UserId};
 use sqlx::PgPool;
 
 #[derive(sqlx::FromRow)]
@@ -253,18 +253,19 @@ pub async fn fetch_warn_thresholds(
     Ok(thresholds)
 }
 
-pub async fn log_warning(
+/// Records the warn without requiring either user object to resolve.
+pub async fn log_warning_by_id(
     db: &PgPool,
     guild_id: GuildId,
-    user: &User,
-    moderator: &User,
+    user_id: UserId,
+    moderator_id: UserId,
     reason: &str,
 ) -> Result<()> {
-    log_moderation_action(
+    log_moderation_action_by_id(
         db,
         guild_id,
-        Some(user),
-        moderator,
+        Some(user_id),
+        moderator_id,
         Some(reason),
         ActionType::Warn,
         None,

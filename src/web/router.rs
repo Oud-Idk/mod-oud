@@ -28,7 +28,8 @@ async fn health_check() -> &'static str {
 
 #[instrument]
 async fn not_found_route(method: Method, uri: Uri) -> (StatusCode, &'static str) {
-    debug!(method = %method, uri = %uri, "404 Not Found");
+    // Only the path: fallback URIs can carry signed ticket query strings.
+    debug!(method = %method, path = uri.path(), "404 Not Found");
     (StatusCode::NOT_FOUND, "Not Found. Meow :3")
 }
 

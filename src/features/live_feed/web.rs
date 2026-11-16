@@ -34,7 +34,7 @@ pub struct SseQuery {
     pub sig: Option<String>,
 }
 
-#[instrument(skip(state))]
+#[instrument(skip(state, params))]
 pub async fn sse_handler(
     State(state): State<Arc<WebState>>,
     Query(params): Query<SseQuery>,

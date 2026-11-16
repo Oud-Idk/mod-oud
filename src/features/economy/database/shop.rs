@@ -379,10 +379,7 @@ pub async fn use_item_tx(
         return Ok(Err(UseItemError::NotOwned { owned }));
     }
 
-    if remove_inventory_item_tx(&mut tx, guild_id, user_id, item.id, quantity)
-        .await?
-        == 0
-    {
+    if remove_inventory_item_tx(&mut tx, guild_id, user_id, item.id, quantity).await? == 0 {
         tx.rollback().await?;
         return Ok(Err(UseItemError::NotOwned { owned: 0 }));
     }

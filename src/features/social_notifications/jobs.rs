@@ -172,9 +172,7 @@ pub async fn poll_due_feeds(
 
         if !crate::shared::http::is_safe_destination(&feed_row.url) {
             warn!(feed_id = %feed_id, url = %feed_row.url, "skipping feed pointed at a disallowed destination");
-            if let Err(mark_err) = database::mark_feed_polled(db, feed_id).await {
-                warn!(error = ?mark_err, feed_id = %feed_id, "feed poll marker write failed");
-            }
+            mark_polled_or_warn(db, feed_id).await;
             continue;
         }
 
@@ -182,13 +180,7 @@ pub async fn poll_due_feeds(
             Ok(r) => r,
             Err(e) => {
                 warn!(feed_id = %feed_id, url = %feed_row.url, error = ?e, "feed fetch failed");
-                if let Err(mark_err) = database::mark_feed_polled(db, feed_id).await {
-                    warn!(
-                        error = ?mark_err,
-                        feed_id = %feed_id,
-                        "feed poll marker write failed; the feed is retried immediately"
-                    );
-                }
+                mark_polled_or_warn(db, feed_id).await;
                 continue;
             }
         };
@@ -204,13 +196,7 @@ pub async fn poll_due_feeds(
                     url = %feed_row.url,
                     "feed body read failed; this poll cycle is skipped"
                 );
-                if let Err(mark_err) = database::mark_feed_polled(db, feed_id).await {
-                    warn!(
-                        error = ?mark_err,
-                        feed_id = %feed_id,
-                        "feed poll marker write failed; the feed is retried immediately"
-                    );
-                }
+                mark_polled_or_warn(db, feed_id).await;
                 continue;
             }
         };
@@ -243,6 +229,19 @@ pub async fn poll_due_feeds(
     }
 
     Ok(())
+}
+
+/// Marks the feed as polled and warns when that write fails.
+///
+/// A failed marker write leaves the feed due, so it is polled again on the next cycle.
+async fn mark_polled_or_warn(db: &PgPool, feed_id: Uuid) {
+    if let Err(mark_err) = database::mark_feed_polled(db, feed_id).await {
+        warn!(
+            error = ?mark_err,
+            feed_id = %feed_id,
+            "feed poll marker write failed; the feed is retried immediately"
+        );
+    }
 }
 
 async fn dispatch_entry_to_discord(

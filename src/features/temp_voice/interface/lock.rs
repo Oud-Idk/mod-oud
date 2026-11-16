@@ -13,7 +13,8 @@ pub async fn handle_lock_temp_vc(
         return Ok(());
     };
 
-    let response_message = service::lock_temp_vc(&ctx.http, guild_id, channel_id).await?;
+    let response_message =
+        service::lock_temp_vc(&ctx.http, &data.core.redis, guild_id, channel_id).await?;
 
     interaction
         .create_response(&ctx.http, create_ephemeral_msg(&response_message))

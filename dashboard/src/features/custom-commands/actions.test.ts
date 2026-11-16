@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { saveCustomCommandAction, deleteCustomCommandAction, saveCustomPrefixAction } from "./actions";
 import { verifyGuildAccess } from "@/features/_shared/guild";
-import { saveCustomCommand, deleteCustomCommand, saveCustomPrefix } from "@/features/custom-commands/queries";
+import { saveCustomCommand, deleteCustomCommand, saveCustomPrefix, getCustomCommandName } from "@/features/custom-commands/queries";
 import redis from "@/lib/redis";
 import { revalidatePath } from "next/cache";
 import { customCommandSchema, saveCustomCommandInputSchema } from "@/features/custom-commands/types";
@@ -15,6 +15,7 @@ vi.mock("@/features/custom-commands/queries", () => ({
     saveCustomCommand: vi.fn(),
     deleteCustomCommand: vi.fn(),
     saveCustomPrefix: vi.fn(),
+    getCustomCommandName: vi.fn(),
 }));
 
 vi.mock("@/lib/redis", () => ({
@@ -31,6 +32,7 @@ describe("Custom Commands Server Actions", (): void => {
     beforeEach((): void => {
         vi.clearAllMocks();
         vi.spyOn(console, "error").mockImplementation((): void => {return});
+        vi.mocked(getCustomCommandName).mockResolvedValue(null);
     });
 
     afterEach((): void => {
@@ -70,6 +72,21 @@ describe("Custom Commands Server Actions", (): void => {
             expect(saveCustomCommand).toHaveBeenCalledWith("guild_123", validCommand);
             expect(redis.del).toHaveBeenCalledWith("cmd_anywhere:guild_123", "cmd:guild_123:testcmd");
             expect(revalidatePath).toHaveBeenCalledWith("/dashboard/guild_123/custom-commands");
+        });
+
+        it("should clear the old name key when a command is renamed", async (): Promise<void> => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(getCustomCommandName).mockResolvedValue("oldname");
+            vi.mocked(saveCustomCommand).mockResolvedValue({ ...mockSavedCommand, name: "newname" });
+
+            await saveCustomCommandAction("guild_123", { ...validCommand, id: 1, name: "newname" });
+
+            expect(getCustomCommandName).toHaveBeenCalledWith("guild_123", 1);
+            expect(redis.del).toHaveBeenCalledWith(
+                "cmd_anywhere:guild_123",
+                "cmd:guild_123:oldname",
+                "cmd:guild_123:newname"
+            );
         });
 
         it("should NOT save or clear cache when verifyGuildAccess throws", async (): Promise<void> => {
@@ -214,6 +231,20 @@ describe("Custom Commands Server Actions", (): void => {
 
             expect(result).toBe(true);
             expect(redis.del).toHaveBeenCalledWith("cmd_anywhere:guild_123");
+        });
+
+        it("should clear the stored name key when the caller omits the name", async (): Promise<void> => {
+            vi.mocked(verifyGuildAccess).mockResolvedValue(mockUser);
+            vi.mocked(deleteCustomCommand).mockResolvedValue(true);
+            vi.mocked(getCustomCommandName).mockResolvedValue("storedname");
+
+            await deleteCustomCommandAction("guild_123", 42);
+
+            expect(getCustomCommandName).toHaveBeenCalledWith("guild_123", 42);
+            expect(redis.del).toHaveBeenCalledWith(
+                "cmd_anywhere:guild_123",
+                "cmd:guild_123:storedname"
+            );
         });
 
         it("should handle Redis deletion failures without crashing delete action", async (): Promise<void> => {

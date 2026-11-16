@@ -2,7 +2,7 @@ use crate::core::config::state::{BotData, Error};
 use crate::features::temp_voice::keys;
 use fred::clients::Client;
 use fred::interfaces::{HashesInterface, KeysInterface};
-use fred::prelude::Expiration;
+use fred::prelude::{Expiration, SetOptions};
 use serenity::all::{ChannelId, GuildId, UserId};
 use tracing::{debug, warn};
 
@@ -168,6 +168,33 @@ pub async fn clear_pending_transfer(redis: &Client, channel_id: ChannelId) -> Re
     Ok(())
 }
 
+/// Claims a pending transfer so only one acceptance handler can act on it.
+///
+/// The pending key itself is left in place: the claim expires on its own, and a failed
+/// acceptance releases it so the offer can still be taken.
+pub async fn claim_pending_transfer(redis: &Client, channel_id: ChannelId) -> Result<bool, Error> {
+    let key = keys::pending_transfer_claim_key(channel_id);
+    let claimed: Option<String> = redis
+        .set(
+            &key,
+            "1",
+            Some(Expiration::EX(30)),
+            Some(SetOptions::NX),
+            false,
+        )
+        .await?;
+    Ok(claimed.is_some())
+}
+
+pub async fn release_pending_transfer_claim(
+    redis: &Client,
+    channel_id: ChannelId,
+) -> Result<(), Error> {
+    let key = keys::pending_transfer_claim_key(channel_id);
+    let _: () = redis.del(key).await?;
+    Ok(())
+}
+
 pub async fn store_pending_transfer(
     redis: &Client,
     channel_id: ChannelId,
@@ -183,6 +210,39 @@ pub async fn store_pending_transfer(
             false,
         )
         .await?;
+    Ok(())
+}
+
+/// Stores the pre-lock overwrites the first time a channel is locked.
+///
+/// Write-once: a second lock while already locked must not replace the original state.
+pub async fn store_lock_snapshot(
+    redis: &Client,
+    channel_id: ChannelId,
+    json: String,
+) -> Result<(), Error> {
+    let key = keys::lock_snapshot_key(channel_id);
+    let _: Option<String> = redis
+        .set(
+            &key,
+            json,
+            Some(Expiration::EX(86_400)),
+            Some(SetOptions::NX),
+            false,
+        )
+        .await?;
+    Ok(())
+}
+
+pub async fn get_lock_snapshot(
+    redis: &Client,
+    channel_id: ChannelId,
+) -> Result<Option<String>, Error> {
+    Ok(redis.get(keys::lock_snapshot_key(channel_id)).await?)
+}
+
+pub async fn delete_lock_snapshot(redis: &Client, channel_id: ChannelId) -> Result<(), Error> {
+    let _: () = redis.del(keys::lock_snapshot_key(channel_id)).await?;
     Ok(())
 }
 

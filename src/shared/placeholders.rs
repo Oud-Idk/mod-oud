@@ -19,16 +19,53 @@ impl PlaceholderResolver for ResolverChain<'_> {
     }
 }
 
+/// Upper bound on a rendered template, so a placeholder that expands into a long message
+/// cannot produce an oversized payload. Discord's own limit for an embed description is 4096.
+const MAX_RENDERED_LENGTH: usize = 4096;
+
 /// Replaces every `{key}` placeholder in `text` using `resolver`. Unknown
 /// placeholders are left untouched.
+///
+/// The result is bounded: expansion stops once the length budget is used up, and the
+/// remaining text is cut at the limit.
 pub fn render(text: &str, resolver: &dyn PlaceholderResolver) -> String {
     let re = get_placeholder_regex();
-    re.replace_all(text, |caps: &Captures| {
-        resolver
-            .resolve(&caps["key"])
-            .unwrap_or_else(|| caps[0].to_string())
-    })
-    .into_owned()
+    let mut budget = MAX_RENDERED_LENGTH;
+
+    let rendered = re
+        .replace_all(text, |caps: &Captures| {
+            let Some(value) = resolver.resolve(&caps["key"]) else {
+                return caps[0].to_string();
+            };
+
+            if budget == 0 {
+                return caps[0].to_string();
+            }
+
+            let value = if value.len() > budget {
+                truncate_on_char_boundary(&value, budget)
+            } else {
+                value
+            };
+            budget = budget.saturating_sub(value.len());
+            value
+        })
+        .into_owned();
+
+    truncate_on_char_boundary(&rendered, MAX_RENDERED_LENGTH)
+}
+
+/// Cuts `text` to at most `max_len` bytes without splitting a character.
+fn truncate_on_char_boundary(text: &str, max_len: usize) -> String {
+    if text.len() <= max_len {
+        return text.to_string();
+    }
+
+    let mut end = max_len;
+    while end > 0 && !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    text[..end].to_string()
 }
 
 /// Optional Discord context used to resolve user/member, channel, and message

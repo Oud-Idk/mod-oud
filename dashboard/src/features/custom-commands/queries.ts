@@ -122,3 +122,17 @@ export async function deleteCustomCommand(id: number, guildId: string): Promise<
     const res = await db.query(`DELETE FROM custom_commands WHERE id = $1 AND guild_id = $2`, [id, guildId]);
     return (res.rowCount ?? 0) === 1;
 }
+
+/**
+ * Reads the current name of a command so its cache key can be evicted.
+ *
+ * A rename or a delete leaves the old key behind, and the bot keeps serving the old
+ * command from it until the cache expires.
+ */
+export async function getCustomCommandName(guildId: string, id: number): Promise<string | null> {
+    const res = await db.query<{ name: string }>(
+        `SELECT name FROM custom_commands WHERE id = $1 AND guild_id = $2`,
+        [id, guildId]
+    );
+    return res.rows[0]?.name ?? null;
+}
