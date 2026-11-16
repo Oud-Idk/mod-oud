@@ -15,6 +15,7 @@ import {
     deleteReportedMessageCommand,
     getInitialReportsFromDb,
     getMoreReportsFromDb,
+    getReportGuildId,
     resolveReportStatusCommand,
     saveReportConfig,
     timeoutUserCommand,
@@ -40,6 +41,7 @@ vi.mock("./queries", () => ({
     deleteReportedMessageCommand: vi.fn(),
     getInitialReportsFromDb: vi.fn(),
     getMoreReportsFromDb: vi.fn(),
+    getReportGuildId: vi.fn(),
     resolveReportStatusCommand: vi.fn(),
     saveReportConfig: vi.fn(),
     timeoutUserCommand: vi.fn(),
@@ -87,6 +89,9 @@ describe("Report Action Module", () => {
             user: { name: "Mod" },
             expires: "2026-01-01",
         });
+        // The report's own guild decides whether the action may run, so the mock has to answer
+        // with the guild the tests authorise.
+        vi.mocked(getReportGuildId).mockResolvedValue("guild_123");
     });
 
     afterEach(() => {

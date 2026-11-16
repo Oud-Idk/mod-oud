@@ -8,6 +8,7 @@ export interface DiscordGuild {
     id: string;
     name: string;
     icon: string | null;
+    owner?: boolean;
     permissions: string;
 }
 
@@ -89,6 +90,13 @@ export async function getGuildConfigField<T>(guildId: string, key: string): Prom
  * over the existing config, preserving backend-only keys like category_id.
  */
 /**
+ * Narrows a plain object so its entries can be walked without a type assertion.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
  * Collects every Discord channel snowflake embedded in a config value.
  *
  * Keys are matched loosely (anything containing "channel") and values are only
@@ -117,8 +125,8 @@ function collectChannelIds(value: unknown, key: string, into: Set<string>): void
         return;
     }
 
-    if (typeof value === "object") {
-        for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (isRecord(value)) {
+        for (const [k, v] of Object.entries(value)) {
             collectChannelIds(v, k, into);
         }
     }
@@ -151,7 +159,7 @@ async function assertChannelsBelongToGuild(guildId: string, value: unknown): Pro
 
     const rawData: unknown = await response.json();
     const validIds = new Set(
-        Array.isArray(rawData) ? rawData.map((channel: { id?: unknown }) => String(channel?.id)) : []
+        Array.isArray(rawData) ? rawData.map((channel: { id?: string }) => channel.id ?? "") : []
     );
 
     for (const channelId of channelIds) {

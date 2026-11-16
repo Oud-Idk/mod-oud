@@ -24,9 +24,13 @@ const DAY_SERIES = `
 `;
 
 // Range bounds rather than a cast on created_at, so the (guild_id, created_at) index applies.
+//
+// The `::timestamp` cast is what makes the bound UTC: `date AT TIME ZONE 'UTC'` keeps the
+// naive form, so Postgres would read it in the session timezone and shift the day by the
+// server's offset.
 const IN_DAY = (alias: string): string => `
-    ${alias}.created_at >= d.day AT TIME ZONE 'UTC'
-    AND ${alias}.created_at < (d.day + 1) AT TIME ZONE 'UTC'
+    ${alias}.created_at >= d.day::timestamp AT TIME ZONE 'UTC'
+    AND ${alias}.created_at < (d.day + 1)::timestamp AT TIME ZONE 'UTC'
 `;
 
 const ACTION_SERIES: Record<string, ModerationSeries> = {
@@ -125,7 +129,7 @@ export async function getAutomodBreakdown(
             `SELECT rule_type, COUNT(*) AS count
              FROM automod_logs
              WHERE guild_id = $1
-               AND created_at >= ((NOW() AT TIME ZONE 'UTC')::date - ($2::int - 1)) AT TIME ZONE 'UTC'
+               AND created_at >= ((NOW() AT TIME ZONE 'UTC')::date - ($2::int - 1))::timestamp AT TIME ZONE 'UTC'
              GROUP BY rule_type
              ORDER BY count DESC, rule_type
              LIMIT $3`,

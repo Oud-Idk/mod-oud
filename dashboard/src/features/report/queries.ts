@@ -123,11 +123,14 @@ export async function warnUserCommand(
 }
 
 export async function getReportGuildId(reportId: number): Promise<string | null> {
-    const result = await db.query(`SELECT guild_id FROM reported_messages WHERE id = $1`, [reportId]);
+    const result = await db.query<{ guild_id: string }>(
+        `SELECT guild_id FROM reported_messages WHERE id = $1`,
+        [reportId]
+    );
     if (result.rows.length === 0) {
         return null;
     }
-    return String(result.rows[0].guild_id);
+    return result.rows[0].guild_id;
 }
 export async function banUserCommand(
     reportId: number,

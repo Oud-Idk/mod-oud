@@ -39,12 +39,12 @@ export async function verifyRoleGrantHierarchy(
     }
 
     const accessToken = session.accessToken;
-    if (!accessToken) {
+    if (accessToken === undefined) {
         throw new Error("Unauthorized: Missing access token.");
     }
 
     const botToken = process.env.DISCORD_TOKEN;
-    if (!botToken) {
+    if (botToken === undefined) {
         throw new Error("Server misconfigured: DISCORD_TOKEN is missing.");
     }
 
@@ -54,7 +54,7 @@ export async function verifyRoleGrantHierarchy(
         throw new Error("Forbidden: You do not have access to manage this server.");
     }
 
-    const isOwner = (guild as { owner?: boolean }).owner === true;
+    const isOwner = guild.owner === true;
     const permissions = BigInt(guild.permissions);
     const hasRolePermission =
         isOwner ||
@@ -65,6 +65,11 @@ export async function verifyRoleGrantHierarchy(
         throw new Error(
             "Forbidden: You need the 'Manage Roles' permission to configure role rewards or actions."
         );
+    }
+
+    const callerId = session.user.id;
+    if (callerId === undefined) {
+        throw new Error("Unauthorized: Please sign in.");
     }
 
     const headers = { Authorization: `Bot ${botToken}` };
@@ -79,7 +84,7 @@ export async function verifyRoleGrantHierarchy(
         }),
         isOwner
             ? Promise.resolve(null)
-            : fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${session.user.id}`, {
+            : fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${callerId}`, {
                 headers,
                 next: { revalidate: 30 },
             }),

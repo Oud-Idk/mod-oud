@@ -65,10 +65,12 @@ export async function saveRewardsAction(
     try {
         await verifyGuildAccess(guildId);
 
-        const configuredRoles = rewards.flatMap((r) => r.rolesToAdd ?? []);
+        // Parsed first so the role list is the validated one, with the default applied.
+        const validRewards = z.array(saveLevelRewardInputSchema).parse(rewards);
+
+        const configuredRoles = validRewards.flatMap((r) => r.rolesToAdd);
         await verifyRoleGrantHierarchy(guildId, configuredRoles);
 
-        const validRewards = z.array(saveLevelRewardInputSchema).parse(rewards);
         await saveLevelRewards(guildId, validRewards);
         revalidatePath(`/dashboard/${guildId}/leveling`);
     } catch (error: unknown) {

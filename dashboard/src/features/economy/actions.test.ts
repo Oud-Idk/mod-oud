@@ -35,6 +35,8 @@ vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
 }));
 
+vi.mock("server-only", () => ({}));
+
 vi.mock("@/features/economy/queries", () => ({
     saveEconomyConfig: vi.fn(),
     saveEconomyItem: vi.fn(),
@@ -49,6 +51,7 @@ vi.mock("@/features/economy/queries", () => ({
 
 vi.mock("next/cache", () => ({
     revalidatePath: vi.fn(),
+    unstable_cache: vi.fn((fn: () => unknown) => fn),
 }));
 
 const GUILD_ID = "guild_123";
