@@ -19,6 +19,7 @@ import {
     saveXpMultiplierInputSchema,
 } from "@/features/leveling/types";
 import { verifyGuildAccess } from "@/features/_shared/guild";
+import { verifyRoleGrantHierarchy } from "@/features/_shared/hierarchy";
 
 export async function deleteMultipliersAction(
     guildId: string,
@@ -63,7 +64,13 @@ export async function saveRewardsAction(
 ): Promise<void> {
     try {
         await verifyGuildAccess(guildId);
+
+        // Parsed first so the role list is the validated one, with the default applied.
         const validRewards = z.array(saveLevelRewardInputSchema).parse(rewards);
+
+        const configuredRoles = validRewards.flatMap((r) => r.rolesToAdd);
+        await verifyRoleGrantHierarchy(guildId, configuredRoles);
+
         await saveLevelRewards(guildId, validRewards);
         revalidatePath(`/dashboard/${guildId}/leveling`);
     } catch (error: unknown) {

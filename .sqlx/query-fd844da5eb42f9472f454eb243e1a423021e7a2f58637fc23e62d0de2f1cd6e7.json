@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO economy_balances (guild_id, user_id, cash, bank, starting_grant_applied)\n        VALUES ($1, $2, $3, $4, TRUE)\n        ON CONFLICT (guild_id, user_id) DO UPDATE SET\n            cash = EXCLUDED.cash,\n            bank = EXCLUDED.bank,\n            starting_grant_applied = TRUE\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fd844da5eb42f9472f454eb243e1a423021e7a2f58637fc23e62d0de2f1cd6e7"
+}

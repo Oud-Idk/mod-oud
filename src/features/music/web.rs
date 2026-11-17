@@ -1,4 +1,5 @@
 use crate::core::config::state::WebState;
+use crate::features::music::actor::Requester;
 use crate::features::music::keys;
 use crate::features::music::playback::PlaybackHandle;
 use crate::features::music::state::{MusicState, PlayOutcome};
@@ -254,7 +255,7 @@ async fn resolve_voice_channel(
         .ok_or_else(|| "No voice channel found in this server. Create one first.".to_string())
 }
 
-#[instrument(skip(state))]
+#[instrument(skip(state, ws, params))]
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<Arc<WebState>>,
@@ -274,6 +275,13 @@ pub async fn ws_handler(
         params.sig.as_deref(),
     ) else {
         warn!(guild_id = params.guild_id, "missing ticket for WS");
+        return Err(axum::http::StatusCode::UNAUTHORIZED);
+    };
+    let Ok(ticket_user_id) = user_id.parse::<u64>() else {
+        warn!(
+            guild_id = params.guild_id,
+            "WS ticket carries a non-numeric user id"
+        );
         return Err(axum::http::StatusCode::UNAUTHORIZED);
     };
     if !crate::web::ticket::verify_ticket(
@@ -301,11 +309,21 @@ pub async fn ws_handler(
         "new WebSocket control connection"
     );
     Ok(ws.on_upgrade(move |socket| {
-        handle_socket(socket, state, serenity::GuildId::from(params.guild_id))
+        handle_socket(
+            socket,
+            state,
+            serenity::GuildId::from(params.guild_id),
+            serenity::UserId::new(ticket_user_id),
+        )
     }))
 }
 
-async fn handle_socket(socket: WebSocket, state: Arc<WebState>, guild_id: serenity::GuildId) {
+async fn handle_socket(
+    socket: WebSocket,
+    state: Arc<WebState>,
+    guild_id: serenity::GuildId,
+    user_id: serenity::UserId,
+) {
     let (mut sender, mut receiver) = socket.split();
     let mut events_rx = state.music_state.events_tx.subscribe();
     let mut ping_interval = tokio::time::interval(Duration::from_secs(20));
@@ -317,7 +335,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<WebState>, guild_id: sereni
                 match client_msg {
                     Some(Ok(Message::Text(text))) => {
                         // Pass sender or handle directly
-                        handle_text_message(&state, &mut sender, guild_id, text.as_str()).await;
+                        handle_text_message(&state, &mut sender, guild_id, user_id, text.as_str()).await;
                     }
                     Some(Ok(Message::Close(_))) | None => break,
                     _ => {}
@@ -364,6 +382,7 @@ async fn handle_text_message(
     state: &WebState,
     sender: &mut SplitSink<WebSocket, Message>,
     guild_id: serenity::GuildId,
+    user_id: serenity::UserId,
     text: &str,
 ) {
     let message: Result<ClientMessage, _> = serde_json::from_str(text);
@@ -385,6 +404,15 @@ async fn handle_text_message(
                 .await;
             return;
         }
+    };
+
+    // The verified ticket identifies the caller; a client-supplied requester could name anyone.
+    let action = match action {
+        MusicAction::Play { query, .. } => MusicAction::Play {
+            query,
+            requested_by: resolve_requester(state, guild_id, user_id).await,
+        },
+        other => other,
     };
 
     let outcome = state.web_commands.send(guild_id, action).await;
@@ -413,6 +441,34 @@ async fn handle_text_message(
 /// Registers the music web route for the WebSocket control connection.
 pub fn routes() -> Router<Arc<WebState>> {
     Router::new().route("/ws/control", get(ws_handler))
+}
+
+/// Builds the queue requester from the ticket owner, preferring their guild nickname.
+async fn resolve_requester(
+    state: &WebState,
+    guild_id: serenity::GuildId,
+    user_id: serenity::UserId,
+) -> Requester {
+    let name = match state.serenity_http.get_member(guild_id, user_id).await {
+        Ok(member) => member.nick.unwrap_or_else(|| member.user.name.clone()),
+        Err(member_error) => match state.serenity_http.get_user(user_id).await {
+            Ok(user) => user.name,
+            Err(user_error) => {
+                warn!(
+                    user_id = %user_id,
+                    error = %member_error,
+                    user_error = %user_error,
+                    "music requester lookup failed"
+                );
+                "Unknown user".to_string()
+            }
+        },
+    };
+
+    Requester {
+        id: user_id,
+        name: Arc::from(name),
+    }
 }
 
 #[cfg(test)]

@@ -1,3 +1,4 @@
+use crate::core::config::settings::get_settings;
 use crate::core::config::state::WebState;
 use crate::shared::error;
 use crate::shared::guild_resource::channel_in_guild;
@@ -55,6 +56,38 @@ pub async fn handle_delete_ticket_message(
                 "Internal server error.".to_string(),
             ));
         }
+    }
+
+    // Managing the guild is not managing its messages, so the bot only deletes the panel it
+    // posted. Any other message in the guild stays out of the bot's reach.
+    let settings = get_settings(
+        &state.core.db,
+        &state.core.redis,
+        &state.core.guild_configs_cache,
+        guild_id,
+    )
+    .await
+    .map_err(|e| {
+        warn!(error = ?e, %guild_id, "ticket panel lookup failed");
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal server error.".to_string(),
+        )
+    })?;
+
+    let is_registered_panel =
+        settings.tickets.as_ref().and_then(|t| t.posted_message_id) == Some(payload.message_id);
+
+    if !is_registered_panel {
+        warn!(
+            %guild_id,
+            message_id = %payload.message_id,
+            "rejected ticket panel delete; the message is not the registered panel"
+        );
+        return Err((
+            StatusCode::FORBIDDEN,
+            "That message is not this server's ticket panel.".to_string(),
+        ));
     }
 
     match payload

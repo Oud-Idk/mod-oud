@@ -8,6 +8,17 @@ pub fn inviters_key(guild_id: GuildId) -> String {
     format!("guild:invite_inviters:{guild_id}")
 }
 
+/// Maximum uses per invite code, used to tell an exhausted invite from a deleted one.
+pub fn invite_max_uses_key(guild_id: GuildId) -> String {
+    format!("guild:invite_max_uses:{guild_id}")
+}
+
+/// Inviters of codes that vanished, kept briefly so a join that consumed the last use can
+/// still be attributed after Discord removed the code.
+pub fn expired_inviters_key(guild_id: GuildId) -> String {
+    format!("guild:expired_invite_inviters:{guild_id}")
+}
+
 pub fn invited_by_key(guild_id: GuildId) -> String {
     format!("guild:invited_by:{guild_id}")
 }

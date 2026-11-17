@@ -82,6 +82,44 @@ pub async fn try_acquire_gambling_cooldown(
     Some(format!("You're on cooldown. Try again in {wait_time}."))
 }
 
+/// Restarts the cooldown window of a game that just settled.
+///
+/// The cooldown is taken when the game starts, so a long game (blackjack, higher/lower) can
+/// outlast it. Re-arming here makes the wait start from the end of the game.
+///
+/// The key is only refreshed when it still exists, so a released cooldown is not resurrected.
+pub async fn rearm_gambling_cooldown(ctx: &Context<'_>, config: &GamblingConfig) {
+    let secs = config.cooldown_secs.max(0);
+    if secs == 0 {
+        return;
+    }
+    let Some(guild_id) = ctx.guild_id() else {
+        return;
+    };
+    let user_id = ctx.author().id;
+    let redis = &ctx.data().core.redis;
+    let key = gambling_cooldown_key(guild_id, user_id);
+
+    if let Err(e) = redis
+        .set::<(), &str, &str>(
+            &key,
+            "1",
+            Some(Expiration::EX(secs)),
+            Some(SetOptions::XX),
+            false,
+        )
+        .await
+    {
+        warn!(
+            error = ?e,
+            cooldown_key = %key,
+            %guild_id,
+            %user_id,
+            "gambling cooldown re-arm failed; the wait may start before the game ends"
+        );
+    }
+}
+
 /// Release a previously-acquired cooldown.
 pub async fn release_gambling_cooldown(ctx: &Context<'_>) {
     let Some(guild_id) = ctx.guild_id() else {

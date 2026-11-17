@@ -2,9 +2,9 @@ use crate::core::config::settings::GuildSettings;
 use crate::core::config::settings::get_settings;
 use crate::core::config::state::{BotData, Error};
 use crate::features::invite_tracking::cache::{
-    collect_pairs, get_cached_inviter, get_invite_uses, remove_invite_from_redis,
-    replace_guild_invites, store_invite_attribution, store_invite_to_redis_hash,
-    update_cached_invite_uses,
+    collect_pairs, get_cached_inviter, get_invite_max_uses, get_invite_uses,
+    remove_invite_from_redis, replace_guild_invites, store_invite_attribution,
+    store_invite_to_redis_hash, sync_cached_invite_uses,
 };
 use crate::features::invite_tracking::database::attribute_join;
 use crate::shared::store_username_relation;
@@ -132,6 +132,7 @@ pub async fn store_member_invite(
     })?;
 
     let old_uses = get_invite_uses(redis, guild_id).await;
+    let old_max_uses = get_invite_max_uses(redis, guild_id).await;
 
     // Find invite whose use count incremented
     let mut used_code = current_invites.iter().find_map(|inv| {
@@ -150,17 +151,36 @@ pub async fn store_member_invite(
             .filter(|code| !current_codes.contains(code.as_str()))
             .collect();
 
-        // If exactly 1 invite disappeared at the moment of join, it was the single-use invite
+        // If exactly 1 invite disappeared at the moment of join, it was the single-use invite.
+        // It only counts when its last use was reached, otherwise the code was deleted by its
+        // owner at the same time and this join came from somewhere else.
         if missing_codes.len() == 1 {
-            used_code = Some(missing_codes[0].clone());
+            let code = missing_codes[0].as_str();
+            let max_uses = old_max_uses.get(code).copied().unwrap_or(0);
+            let used_before = old_uses.get(code).copied().unwrap_or(0);
+            if max_uses > 0 && used_before.saturating_add(1) >= max_uses {
+                used_code = Some(code.to_string());
+            } else {
+                debug!(
+                    %guild_id,
+                    %code,
+                    max_uses,
+                    used_before,
+                    "invite disappeared without reaching its use limit; not attributed"
+                );
+            }
         }
     }
 
     // Refresh uses cache with current state
     let cache_pairs = collect_pairs(&current_invites);
-    if !cache_pairs.uses_items.is_empty() {
-        update_cached_invite_uses(redis, guild_id, cache_pairs.uses_items).await?;
-    }
+    sync_cached_invite_uses(
+        redis,
+        guild_id,
+        cache_pairs.uses_items,
+        cache_pairs.max_uses_items,
+    )
+    .await?;
 
     let Some(code) = used_code else {
         debug!(

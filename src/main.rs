@@ -89,7 +89,12 @@ async fn async_main(env_config: EnvConfig) -> Result<(), Error> {
 
     let guild_configs = moka::future::Cache::new(5000);
     let bad_words_cache = moka::future::Cache::new(10_000);
-    config::sync::sync_configs(&subscriber_client, &guild_configs, &bad_words_cache);
+    config::sync::sync_configs(
+        &subscriber_client,
+        &redis_client,
+        &guild_configs,
+        &bad_words_cache,
+    );
 
     let (username_tx, username_rx) = mpsc::channel::<UserUpdate>(5000);
 

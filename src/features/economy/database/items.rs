@@ -185,6 +185,7 @@ pub async fn list_items(db: &PgPool, guild_id: GuildId) -> Result<Vec<Item>, sql
         FROM economy_items
         WHERE guild_id = $1
           AND (expires_at IS NULL OR expires_at > NOW())
+          AND is_listed = TRUE
         ORDER BY name ASC
         "#,
         guild_id.get().cast_signed(),

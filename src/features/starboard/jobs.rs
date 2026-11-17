@@ -1,6 +1,6 @@
 use crate::core::config::state::BotData;
 use crate::features::starboard::builder::build_starboard_message;
-use crate::features::starboard::cache::get_starboard_count;
+use crate::features::starboard::cache::{self, get_starboard_count};
 use crate::features::starboard::database;
 use crate::features::starboard::database::StarboardPayload;
 use crate::features::starboard::types::Starboard;
@@ -64,6 +64,7 @@ pub async fn debounced_starboard_sync(
                     if let Err(e) = upsert_starboard(
                         &ctx_clone,
                         &db_clone,
+                        &redis_clone,
                         &starboard_clone,
                         &reaction_clone,
                         final_count,
@@ -127,6 +128,7 @@ pub async fn debounced_starboard_sync(
 pub async fn upsert_starboard(
     ctx: &Context,
     db: &PgPool,
+    redis: &fred::clients::Client,
     starboard: &Starboard,
     reaction: &Reaction,
     emoji_count: u64,
@@ -186,6 +188,7 @@ pub async fn upsert_starboard(
     create_or_update_post(
         ctx,
         db,
+        redis,
         starboard,
         reaction,
         starboard_msg_id,
@@ -204,7 +207,7 @@ pub struct BuiltStarboardMessage {
 }
 
 #[instrument(
-    skip(ctx, db, starboard, reaction, message_data),
+    skip(ctx, db, redis, starboard, reaction, message_data),
     fields(
         starboard_id = starboard.id,
         orig_msg_id = %reaction.message_id,
@@ -214,6 +217,7 @@ pub struct BuiltStarboardMessage {
 async fn create_or_update_post(
     ctx: &Context,
     db: &PgPool,
+    redis: &fred::clients::Client,
     starboard: &Starboard,
     reaction: &Reaction,
     starboard_msg_id: Option<MessageId>,
@@ -263,6 +267,31 @@ async fn create_or_update_post(
         };
 
         database::insert_starred_message(db, starboard_payload).await?;
+
+        // The source can be deleted while the publication is in flight, and the cleanup that
+        // runs then cannot see this copy because the association did not exist yet. The
+        // deletion marker closes that window, so the copy does not outlive the source.
+        if cache::is_source_deleted(redis, guild_id, orig_msg_id).await {
+            debug!(
+                channel_id = %starboard_channel,
+                message_id = %sent_msg.id,
+                "source message was deleted during publication; removing the copy"
+            );
+            if let Err(e) = starboard_channel
+                .delete_message(&ctx.http, sent_msg.id)
+                .await
+            {
+                warn!(
+                    error = ?e,
+                    channel_id = %starboard_channel,
+                    message_id = %sent_msg.id,
+                    "starboard copy not deleted after the source was deleted"
+                );
+            }
+            if let Err(e) = database::delete_starboard(db, orig_msg_id).await {
+                warn!(error = ?e, %orig_msg_id, "starboard association not removed");
+            }
+        }
     }
 
     Ok(())

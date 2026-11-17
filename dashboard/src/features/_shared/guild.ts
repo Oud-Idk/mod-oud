@@ -8,6 +8,7 @@ export interface DiscordGuild {
     id: string;
     name: string;
     icon: string | null;
+    owner?: boolean;
     permissions: string;
 }
 
@@ -88,7 +89,89 @@ export async function getGuildConfigField<T>(guildId: string, key: string): Prom
  * Uses the Postgres || operator to merge new frontend config
  * over the existing config, preserving backend-only keys like category_id.
  */
+/**
+ * Narrows a plain object so its entries can be walked without a type assertion.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Collects every Discord channel snowflake embedded in a config value.
+ *
+ * Keys are matched loosely (anything containing "channel") and values are only
+ * collected when they look like channel snowflakes, so free-text fields such as
+ * channel names are never mistaken for IDs.
+ */
+function collectChannelIds(value: unknown, key: string, into: Set<string>): void {
+    if (value === null || value === undefined) return;
+
+    if (typeof value === "string" || typeof value === "number") {
+        const strVal = String(value);
+        // Discord snowflakes are 17-20 digits. This avoids false positives on limits/counts.
+        const isSnowflake = /^\d{17,20}$/.test(strVal);
+        const isChannelKey = /(?:^|_|(?<=[a-z]))channel(?:s|_?id)?$/i.test(key);
+
+        if (isChannelKey && isSnowflake) {
+            into.add(strVal);
+        }
+        return;
+    }
+
+    if (Array.isArray(value)) {
+        for (const item of value) {
+            collectChannelIds(item, key, into);
+        }
+        return;
+    }
+
+    if (isRecord(value)) {
+        for (const [k, v] of Object.entries(value)) {
+            collectChannelIds(v, k, into);
+        }
+    }
+}
+
+/**
+ * Refuses to persist a config that references a channel outside of `guildId`.
+ *
+ * The bot resolves stored channel IDs with its own credentials, so a manager of one
+ * guild could otherwise aim delivery at another guild's channel.
+ */
+async function assertChannelsBelongToGuild(guildId: string, value: unknown): Promise<void> {
+    const channelIds = new Set<string>();
+    collectChannelIds(value, "", channelIds);
+    if (channelIds.size === 0) return;
+
+    const token = process.env.DISCORD_TOKEN;
+    if (token === undefined || token === "") {
+        throw new Error("DISCORD_TOKEN is not configured.");
+    }
+
+    const response = await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
+        headers: { Authorization: `Bot ${token}` },
+        next: { revalidate: 30 },
+    });
+
+    if (!response.ok) {
+        throw new Error("Could not verify channel ownership.");
+    }
+
+    const rawData: unknown = await response.json();
+    const validIds = new Set(
+        Array.isArray(rawData) ? rawData.map((channel: { id?: string }) => channel.id ?? "") : []
+    );
+
+    for (const channelId of channelIds) {
+        if (!validIds.has(channelId)) {
+            throw new Error("That channel does not belong to this server.");
+        }
+    }
+}
+
 export async function saveGuildConfigField(guildId: string, key: string, value: unknown): Promise<void> {
+    await assertChannelsBelongToGuild(guildId, value);
+
     const query = `
         INSERT INTO guild_configs (guild_id, settings)
         VALUES ($1, JSONB_BUILD_OBJECT($2::TEXT, $3::JSONB))
@@ -125,6 +208,8 @@ export async function saveGuildConfigField(guildId: string, key: string, value: 
  * sparingly — only when the caller owns the entire object.
  */
 export async function replaceGuildConfigField(guildId: string, key: string, value: unknown): Promise<void> {
+    await assertChannelsBelongToGuild(guildId, value);
+
     const query = `
         INSERT INTO guild_configs (guild_id, settings)
         VALUES ($1, JSONB_BUILD_OBJECT($2::TEXT, $3::JSONB))

@@ -4,6 +4,12 @@
 //! several providers authenticate in the query string. So `error = %e` and `error = ?e` are both
 //! a way to print an API key. Log a redacted URL and a described error instead, and never let the
 //! raw error reach an `anyhow` chain that something above will print.
+//!
+
+use reqwest::dns::{Addrs, Name, Resolve, Resolving};
+use reqwest::redirect::Policy;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::sync::Arc;
 
 /// Query-string parameter names that carry a credential.
 const SECRET_QUERY_PARAMS: &[&str] = &[
@@ -81,6 +87,194 @@ pub fn safe_reqwest_error(e: &reqwest::Error) -> String {
         parts.push("unspecified".to_string());
     }
     parts.join(", ")
+}
+
+/// Evaluates whether an IP address belongs to a private, loopback, link-local,
+/// or reserved network.
+#[must_use]
+pub fn is_safe_ip(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v4) => is_safe_ipv4(v4),
+        IpAddr::V6(v6) => {
+            if let Some(v4) = v6.to_ipv4_mapped() {
+                return is_safe_ipv4(v4);
+            }
+            is_safe_ipv6(v6)
+        }
+    }
+}
+
+fn is_safe_ipv4(ip: Ipv4Addr) -> bool {
+    if ip.is_unspecified()
+        || ip.is_loopback()
+        || ip.is_private()
+        || ip.is_link_local()
+        || ip.is_broadcast()
+        || ip.is_multicast()
+    {
+        return false;
+    }
+
+    let octets = ip.octets();
+    // 100.64.0.0/10 (Carrier-Grade NAT)
+    if octets[0] == 100 && (octets[1] & 0xc0) == 64 {
+        return false;
+    }
+    // 192.0.0.0/24 (IETF Protocol Assignments)
+    if octets[0] == 192 && octets[1] == 0 && octets[2] == 0 {
+        return false;
+    }
+    // 192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24 (Documentation / Test-Net)
+    if (octets[0] == 192 && octets[1] == 0 && octets[2] == 2)
+        || (octets[0] == 198 && octets[1] == 51 && octets[2] == 100)
+        || (octets[0] == 203 && octets[1] == 0 && octets[2] == 113)
+    {
+        return false;
+    }
+    // 198.18.0.0/15 (Benchmarking)
+    if octets[0] == 198 && (octets[1] & 0xfe) == 18 {
+        return false;
+    }
+    // 240.0.0.0/4 (Reserved / Former Class E)
+    if octets[0] >= 240 {
+        return false;
+    }
+
+    true
+}
+
+fn is_safe_ipv6(ip: Ipv6Addr) -> bool {
+    if ip.is_unspecified() || ip.is_loopback() || ip.is_multicast() {
+        return false;
+    }
+
+    let segments = ip.segments();
+    // fc00::/7 (Unique Local Address - ULA)
+    if (segments[0] & 0xfe00) == 0xfc00 {
+        return false;
+    }
+    // fe80::/10 (Link-Local Unicast)
+    if (segments[0] & 0xffc0) == 0xfe80 {
+        return false;
+    }
+    // 2001:db8::/32 (Documentation)
+    if segments[0] == 0x2001 && segments[1] == 0xdb8 {
+        return false;
+    }
+    // 100::/64 (Discard Prefix)
+    if segments[0] == 0x100 && segments[1] == 0 && segments[2] == 0 && segments[3] == 0 {
+        return false;
+    }
+
+    true
+}
+
+/// Synchronous syntax & literal IP check for URLs.
+#[must_use]
+pub fn is_safe_destination(url: &str) -> bool {
+    let Ok(parsed) = reqwest::Url::parse(url) else {
+        return false;
+    };
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return false;
+    }
+    let Some(host) = parsed.host_str() else {
+        return false;
+    };
+
+    let host = host.trim_matches(['[', ']']);
+    if host.eq_ignore_ascii_case("localhost") {
+        return false;
+    }
+
+    if let Ok(ip) = host.parse::<IpAddr>() {
+        return is_safe_ip(ip);
+    }
+
+    let lower = host.to_ascii_lowercase();
+    if lower.ends_with(".localhost")
+        || lower.ends_with(".local")
+        || lower.ends_with(".internal")
+        || lower == "metadata.google.internal"
+    {
+        return false;
+    }
+
+    true
+}
+
+/// Asynchronously resolves DNS and verifies that ALL resolved IP addresses are public.
+pub async fn is_safe_destination_async(url: &str) -> bool {
+    if !is_safe_destination(url) {
+        return false;
+    }
+
+    let Ok(parsed) = reqwest::Url::parse(url) else {
+        return false;
+    };
+    let Some(host) = parsed.host_str() else {
+        return false;
+    };
+
+    if host.trim_matches(['[', ']']).parse::<IpAddr>().is_ok() {
+        return true;
+    }
+
+    let port = parsed.port_or_known_default().unwrap_or(80);
+    let Ok(addrs) = tokio::net::lookup_host((host, port)).await else {
+        return false;
+    };
+
+    let mut count = 0;
+    for addr in addrs {
+        count += 1;
+        if !is_safe_ip(addr.ip()) {
+            return false;
+        }
+    }
+
+    count > 0
+}
+
+/// Custom DNS resolver for reqwest that filters out non-public IP addresses.
+#[derive(Clone)]
+pub struct SafeDnsResolver;
+
+impl Resolve for SafeDnsResolver {
+    fn resolve(&self, name: Name) -> Resolving {
+        Box::pin(async move {
+            let host = name.as_str();
+            let addrs = tokio::net::lookup_host((host, 0)).await?;
+            let safe: Vec<SocketAddr> = addrs.filter(|addr| is_safe_ip(addr.ip())).collect();
+
+            if safe.is_empty() {
+                return Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "Destination resolved to a restricted IP address",
+                ))
+                    as Box<dyn std::error::Error + Send + Sync>);
+            }
+
+            let addrs: Addrs = Box::new(safe.into_iter());
+            Ok(addrs)
+        })
+    }
+}
+
+/// Creates a reqwest client configured to prevent SSRF (validates DNS and redirects).
+pub fn build_safe_http_client() -> Result<reqwest::Client, reqwest::Error> {
+    reqwest::Client::builder()
+        .dns_resolver(Arc::new(SafeDnsResolver))
+        .redirect(Policy::custom(|attempt| {
+            if attempt.previous().len() >= 5 {
+                return attempt.error("Too many redirects");
+            }
+            if !is_safe_destination(attempt.url().as_str()) {
+                return attempt.error("Redirect to restricted destination blocked");
+            }
+            attempt.follow()
+        }))
+        .build()
 }
 
 #[cfg(test)]

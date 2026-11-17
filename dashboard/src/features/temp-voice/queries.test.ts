@@ -20,6 +20,12 @@ vi.mock("@/lib/backend", () => ({
     backendFetch: vi.fn(),
 }));
 
+vi.mock("@/lib/redis", () => ({
+    default: {
+        del: vi.fn(),
+    },
+}));
+
 // Row mapping, SQL shape, tenant scoping, upsert conflict targets and
 // constraints live in queries.integration.test.ts against a real database.
 // What stays here is the behaviour a real database will not produce on

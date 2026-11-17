@@ -143,11 +143,15 @@ async fn warn_inactive_tickets(
             ChronoDuration::from_std(warn_std).unwrap_or(ChronoDuration::minutes(30));
         let delete_duration =
             ChronoDuration::from_std(delete_std).unwrap_or(ChronoDuration::minutes(45));
+        let warn_cutoff = now.checked_sub_signed(warn_duration).unwrap_or(now);
 
         if let Some(last_activity) = row.last_activity
-            && last_activity < now - warn_duration
+            && last_activity < warn_cutoff
         {
-            let remaining_minutes = (delete_duration - warn_duration).num_minutes();
+            let remaining_minutes = delete_duration
+                .checked_sub(&warn_duration)
+                .map(|d| d.num_minutes())
+                .unwrap_or(15);
             tickets_to_warn.push(WarnTarget {
                 guild_id: row.guild_id,
                 channel_id: row.channel_id,

@@ -12,7 +12,7 @@ export const raidActionKindSchema = z.enum([
 export const raidActionSchema = z.discriminatedUnion("type", [
     z.object({ type: z.literal("LOCKDOWN_SERVER") }),
     z.object({ type: z.literal("BUMP_VERIFICATION") }),
-    z.object({ type: z.literal("PAUSE_INVITES"), hour: z.number().min(1) }),
+    z.object({ type: z.literal("PAUSE_INVITES"), hours: z.number().min(1) }),
     z.object({ type: z.literal("ALERT"), channelId: z.string().min(1, "Alert channel is required") }),
     z.object({ type: z.literal("TIMEOUT_NEW_JOINS"), mins: z.number().min(1) }),
     z.object({ type: z.literal("AUTO_BAN_NEW_ACCOUNTS"), maxAgeHours: z.number().min(1) }),

@@ -363,7 +363,6 @@ describe("Custom Commands Schemas", () => {
                 const action = result.data.actions[0];
                 if (action.type === "respond_current_channel") {
                     expect(action.data.is_dm).toBe(false);
-                    expect(action.data.is_ephemeral).toBe(false);
                     expect(action.data.message_layout.randomize).toBe(false);
                 }
             }

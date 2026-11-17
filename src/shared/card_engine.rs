@@ -73,6 +73,19 @@ pub fn fallback<'a>(val: &'a str, default: &'a str) -> &'a str {
     if trimmed.is_empty() { default } else { trimmed }
 }
 
+/// Normalises a configured color to `#RRGGBB`/`#RGB`/`#RRGGBBAA`, or `default` when it is not one.
+#[must_use]
+pub fn sanitize_color(value: &str, default: &str) -> String {
+    let trimmed = value.trim();
+    let hex = trimmed.strip_prefix('#').unwrap_or(trimmed);
+    let is_hex = matches!(hex.len(), 3 | 4 | 6 | 8) && hex.chars().all(|c| c.is_ascii_hexdigit());
+    if is_hex {
+        format!("#{hex}")
+    } else {
+        default.to_string()
+    }
+}
+
 /// Fetches an image URL and turns it into an SVG-ready Base64 Data URI
 pub async fn fetch_avatar_data_uri(url: &str) -> Option<String> {
     if url.trim().is_empty() {
@@ -153,6 +166,17 @@ impl<'a> SvgTemplate<'a> {
     pub fn set_raw(mut self, key: impl std::fmt::Display, value: impl std::fmt::Display) -> Self {
         self.patterns.push(format!("{{{{{key}}}}}"));
         self.replacements.push(value.to_string());
+        self
+    }
+
+    /// A guild-configured color, inserted raw only when it is a plain hex value.
+    ///
+    /// Colors land in `fill=`/`stroke=` attributes, so an arbitrary string could add markup.
+    /// Anything that is not a hex color falls back to `default` instead.
+    #[must_use]
+    pub fn set_color(mut self, key: impl std::fmt::Display, value: &str, default: &str) -> Self {
+        self.patterns.push(format!("{{{{{key}}}}}"));
+        self.replacements.push(sanitize_color(value, default));
         self
     }
 

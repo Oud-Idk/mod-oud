@@ -119,6 +119,10 @@ async fn flush_guild(
     let pending_key = keys::pending_levels_key(guild_id_str);
     let flushing_key = keys::flushing_levels_key(guild_id_str);
 
+    // Clear the dirty mark first. An XP write that happens during this flush marks the guild
+    // again, so its records are picked up next round instead of being dropped by a late SREM.
+    cache::remove_dirty_guild(redis, guild_id_str).await?;
+
     let stale_exists: bool = cache::flushing_key_exists(redis, &flushing_key).await?;
 
     if stale_exists {
@@ -135,9 +139,14 @@ async fn flush_guild(
         trace!("no pending records to claim");
     }
 
-    cache::remove_dirty_guild(redis, guild_id_str).await?;
-    debug!("guild removed from dirty guilds list");
+    // A writer can arrive between the SREM above and the claim, leaving a pending key with no
+    // dirty mark. Re-marking is cheap and makes that race a one-pass delay instead of a loss.
+    if cache::pending_key_exists(redis, guild_id_str).await? {
+        debug!("levels arrived during the flush; guild re-marked dirty");
+        cache::mark_guild_dirty(redis, guild_id_str).await?;
+    }
 
+    debug!("guild flush finished");
     Ok(())
 }
 

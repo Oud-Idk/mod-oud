@@ -1,6 +1,7 @@
 use crate::core::config::guild_ctx::get_guild_ctx;
 use crate::features::starboard::cache::cache_emoji_count;
-use crate::features::starboard::types::Starboard;
+use crate::features::starboard::perms;
+use crate::features::starboard::types::{RestrictionType, Starboard};
 use crate::shared::placeholders::{DiscordCtx, PlaceholderResolver, ResolverChain, render};
 use fred::prelude::*;
 use serenity::all::{
@@ -174,7 +175,7 @@ pub async fn count_emoji_and_cache(
     starboard: &Starboard,
     redis: &Client,
     cached_key: &str,
-) -> FredResult<u64> {
+) -> anyhow::Result<u64> {
     if let Some(count) = value {
         debug!(
             count = count,
@@ -183,31 +184,98 @@ pub async fn count_emoji_and_cache(
         Ok(count)
     } else {
         debug!("count not provided by the redis script");
-        let mut count = msg
-            .reactions
-            .iter()
-            .find(|r| is_emoji_match(&r.reaction_type, &removed_reaction.emoji))
-            .map_or(0, |r| r.count);
 
-        if starboard.prevent_self_star {
-            debug!("self-star prevention active");
-            let has_author_reacted = has_user_reacted(
-                ctx,
-                removed_reaction.channel_id,
-                removed_reaction.message_id,
-                &removed_reaction.emoji,
-                msg.author.id,
-            )
-            .await
-            .unwrap_or(false);
-            if has_author_reacted && count > 0 {
-                count -= 1;
-                debug!("self-star detected; official reaction count decremented");
+        // Restricted users' reactions never increment the cached counter, so the raw Discord
+        // count would overstate the stars. Recount from the reactors when roles are filtered.
+        let count = if starboard.role_restriction_type == RestrictionType::None {
+            let mut count = msg
+                .reactions
+                .iter()
+                .find(|r| is_emoji_match(&r.reaction_type, &removed_reaction.emoji))
+                .map_or(0, |r| r.count);
+
+            if starboard.prevent_self_star {
+                debug!("self-star prevention active");
+                let has_author_reacted = has_user_reacted(
+                    ctx,
+                    removed_reaction.channel_id,
+                    removed_reaction.message_id,
+                    &removed_reaction.emoji,
+                    msg.author.id,
+                )
+                .await
+                .unwrap_or(false);
+                if has_author_reacted && count > 0 {
+                    count -= 1;
+                    debug!("self-star detected; official reaction count decremented");
+                }
             }
-        }
+            count
+        } else {
+            count_allowed_reactors(ctx, msg, removed_reaction, starboard).await?
+        };
 
         cache_emoji_count(redis, cached_key, count).await?;
         debug!(key = %cached_key, count = count, "redis emoji cache updated");
         Ok(count)
     }
+}
+
+/// Counts reactors whose roles pass the starboard's role restriction.
+///
+/// Only used on a cache miss, since the incremental cache never sees a restricted reaction.
+async fn count_allowed_reactors(
+    ctx: &Context,
+    msg: &Message,
+    reaction: &Reaction,
+    starboard: &Starboard,
+) -> anyhow::Result<u64> {
+    let Some(guild_id) = reaction.guild_id else {
+        return Ok(0);
+    };
+
+    let mut count = 0u64;
+    let mut after: Option<u64> = None;
+
+    loop {
+        let batch = ctx
+            .http
+            .get_reaction_users(
+                reaction.channel_id,
+                reaction.message_id,
+                &reaction.emoji,
+                100,
+                after,
+            )
+            .await?;
+
+        if batch.is_empty() {
+            break;
+        }
+
+        let is_last_batch = batch.len() < 100;
+        after = batch.last().map(|user| user.id.get());
+
+        for user in batch {
+            if starboard.prevent_self_star && user.id == msg.author.id {
+                continue;
+            }
+            match ctx.http.get_member(guild_id, user.id).await {
+                Ok(member) => {
+                    if perms::is_role_allowed(starboard, &member) {
+                        count += 1;
+                    }
+                }
+                Err(e) => {
+                    debug!(user_id = %user.id, error = %e, "reactor member lookup failed; not counted");
+                }
+            }
+        }
+
+        if is_last_batch {
+            break;
+        }
+    }
+
+    Ok(count)
 }

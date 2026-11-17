@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        WITH deleted AS (\n            DELETE FROM economy_inventory\n            WHERE guild_id = $1 AND user_id = $2 AND item_id = $3 AND quantity = $4\n            RETURNING item_id\n        ),\n        updated AS (\n            UPDATE economy_inventory\n            SET quantity = quantity - $4\n            WHERE guild_id = $1 AND user_id = $2 AND item_id = $3 AND quantity > $4\n            RETURNING item_id\n        )\n        SELECT item_id FROM deleted\n        UNION ALL\n        SELECT item_id FROM updated\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "item_id",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Uuid",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "09f87477c022bcd60fdb074b475e98e1c709208ed602445c6de276a0016d63a7"
+}

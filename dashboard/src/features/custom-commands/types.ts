@@ -22,7 +22,6 @@ export const commandActionSchema = z.discriminatedUnion("type", [
         type: z.literal("respond_current_channel"),
         data: z.object({
             is_dm: z.boolean().default(false),
-            is_ephemeral: z.boolean().default(false),
             message_layout: messageLayoutGroupSchema,
         }),
     }),

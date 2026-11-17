@@ -1,5 +1,6 @@
 use crate::core::config::state::WebState;
 use crate::features::moderation::channels::delete_entire_category;
+use crate::shared::guild_resource::ensure_channel_in_guild;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::routing::delete;
@@ -43,6 +44,8 @@ pub async fn handle_delete_entire_category(
 
     let guild_id = serenity::GuildId::new(guild_id_u64);
     let category_id = serenity::ChannelId::new(payload.category_id);
+
+    ensure_channel_in_guild(&state.serenity_http, category_id, guild_id).await?;
 
     let deleted_count = delete_entire_category(&state.serenity_http, guild_id, category_id)
         .await

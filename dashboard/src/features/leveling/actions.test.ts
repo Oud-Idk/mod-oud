@@ -28,6 +28,12 @@ vi.mock("@/features/_shared/guild", () => ({
     verifyGuildAccess: vi.fn(),
 }));
 
+vi.mock("@/features/_shared/hierarchy", () => ({
+    verifyRoleGrantHierarchy: vi.fn(),
+}));
+
+vi.mock("server-only", () => ({}));
+
 vi.mock("@/features/leveling/queries", () => ({
     deleteXpMultipliers: vi.fn(),
     saveXpMultipliers: vi.fn(),
@@ -39,6 +45,7 @@ vi.mock("@/features/leveling/queries", () => ({
 
 vi.mock("next/cache", () => ({
     revalidatePath: vi.fn(),
+    unstable_cache: vi.fn((fn: () => unknown) => fn),
 }));
 
 describe("Leveling Server Actions", () => {

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO economy_balances (guild_id, user_id, cash, bank)\n        VALUES ($1, $2, $3, 0)\n        ON CONFLICT (guild_id, user_id) DO NOTHING\n        RETURNING guild_id, user_id, cash, bank\n        ",
+  "query": "\n        INSERT INTO economy_balances (guild_id, user_id, cash, bank, starting_grant_applied)\n        VALUES ($1, $2, $3, 0, TRUE)\n        ON CONFLICT (guild_id, user_id) DO UPDATE SET\n            cash = economy_balances.cash + $3,\n            starting_grant_applied = TRUE\n        WHERE NOT economy_balances.starting_grant_applied\n        RETURNING guild_id, user_id, cash, bank\n        ",
   "describe": {
     "columns": [
       {
@@ -62,5 +62,5 @@
       false
     ]
   },
-  "hash": "6b9af1be790febefa23f5fffcf6aa1e0344844a7b77be7a0f77feff8fa580c3d"
+  "hash": "acbceb569af9f196a921e5437520da1650b408951433ac6e2b29ed455050de73"
 }

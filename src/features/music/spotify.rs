@@ -35,7 +35,13 @@ pub async fn resolve_spotify_playlist(
         return None;
     }
 
-    let playlist_id = url.split("/playlist/").nth(1)?.split('?').next()?;
+    let playlist_id = url
+        .split("/playlist/")
+        .nth(1)?
+        .split('?')
+        .next()?
+        .split('#')
+        .next()?;
 
     let Some(token) = spotify_auth.get_token(client).await else {
         warn!(

@@ -101,8 +101,7 @@ pub async fn handle_heavy_features(State(state): State<Arc<WebState>>) -> Json<b
 pub async fn handle_telemetry(
     State(state): State<Arc<WebState>>,
 ) -> Json<super::telemetry::TelemetryReport> {
-    let report =
-        super::telemetry::collect_core_telemetry(&state.core.db, &state.core.redis).await;
+    let report = super::telemetry::collect_core_telemetry(&state.core.db, &state.core.redis).await;
     Json(report)
 }
 
@@ -116,4 +115,3 @@ pub fn routes() -> Router<Arc<WebState>> {
             post(handle_send_custom_embed),
         )
 }
-

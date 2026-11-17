@@ -155,7 +155,7 @@ pub async fn fetch_starboard(db: &PgPool, id: MessageId) -> Result<Vec<SimpleSta
     let rows = sqlx::query_as!(
         SimpleStarboardRow,
         r#"
-        SELECT sm.starboard_message_id, s.starboard_channel_id, s.keep_deleted_messages
+        SELECT sm.starboard_message_id, sm.channel_id AS starboard_channel_id, s.keep_deleted_messages
         FROM starred_messages sm
         JOIN starboards s ON sm.starboard_id = s.id
         WHERE sm.original_message_id = $1

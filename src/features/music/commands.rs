@@ -6,7 +6,7 @@ use crate::features::music::playback::PlaybackHandle;
 use crate::features::music::player::format_duration;
 use crate::features::music::state::{PlayOutcome, QueueAddOutcome};
 use crate::shared::pagination::paginate;
-use crate::shared::voice_state::get_user_vc_in_guild;
+use crate::shared::voice_state::{CachedPresence, cached_presence, get_user_vc_in_guild};
 use anyhow::{Context as _, Result};
 use poise::CreateReply;
 use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter, User};
@@ -42,13 +42,21 @@ async fn prepare_command(ctx: &Context<'_>, require_vc: bool) -> Result<Option<P
         .await;
 
     let vc_channel_id = if require_vc {
-        if let Some(channel_id) =
-            get_user_vc_in_guild(ctx.data(), guild_id, ctx.author().id).await?
-        {
-            Some(channel_id)
-        } else {
-            reply(ctx, "You are not in any voice channels!").await?;
-            return Ok(None);
+        let user_id = ctx.author().id;
+        // The Redis presence is a fast copy, so the framework's cache has the final say when it
+        // knows the member is no longer in voice.
+        let cached = match cached_presence(ctx.serenity_context(), guild_id, user_id) {
+            CachedPresence::In(channel_id) => Some(channel_id),
+            CachedPresence::Out => None,
+            CachedPresence::Unknown => get_user_vc_in_guild(ctx.data(), guild_id, user_id).await?,
+        };
+
+        match cached {
+            Some(channel_id) => Some(channel_id),
+            None => {
+                reply(ctx, "You are not in any voice channels!").await?;
+                return Ok(None);
+            }
         }
     } else {
         None

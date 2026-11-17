@@ -19,6 +19,7 @@ use crate::features::verification::VerificationSettings;
 use crate::shared::ok_or_none;
 use anyhow::{Context, Result};
 use fred::clients::Client;
+use fred::interfaces::KeysInterface;
 use serde::{Deserialize, Serialize};
 use serenity::all::GuildId;
 use sqlx::PgPool;
@@ -341,6 +342,27 @@ pub async fn save_settings(
     }
 
     Ok(())
+}
+
+/// Drops the cached settings for `guild_id` from Moka and Redis and notifies other
+/// nodes, so a change written directly to the database (such as a raid bump) is
+/// picked up on the next read.
+pub async fn invalidate_settings_cache(
+    redis: &Client,
+    cache: &moka::future::Cache<GuildId, GuildSettings>,
+    guild_id: GuildId,
+) {
+    cache.invalidate(&guild_id).await;
+    let cache_key = guild_config_key(guild_id);
+    let _: Result<(), _> = redis.del(&cache_key).await;
+    let payload = keys::invalidate_settings_key(guild_id);
+    if let Err(e) = redis::publish_config_invalidation(redis, &payload).await {
+        warn!(
+            error = %e,
+            %guild_id,
+            "settings cache invalidation publish failed"
+        );
+    }
 }
 
 #[cfg(test)]

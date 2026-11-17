@@ -105,6 +105,9 @@ pub async fn get_balance(
 /// Ensure a balance row exists, seeding with `starting_balance` if missing.
 /// Returns the current balance (existing or newly seeded).
 ///
+/// The starting grant is applied once per member, tracked by a flag rather than by the wallet
+/// existing, because another member's transfer can create the wallet first.
+///
 /// # Errors
 /// Returns [`Err`] if database operation fails.
 pub async fn ensure_balance(
@@ -117,12 +120,17 @@ pub async fn ensure_balance(
         return get_balance(db, guild_id, user_id).await;
     }
 
+    // The insert seeds a fresh wallet and marks the grant as applied. The conflict branch only
+    // touches a wallet that never received the grant, which is the one a transfer created.
     let row = sqlx::query_as!(
         RawBalance,
         r#"
-        INSERT INTO economy_balances (guild_id, user_id, cash, bank)
-        VALUES ($1, $2, $3, 0)
-        ON CONFLICT (guild_id, user_id) DO NOTHING
+        INSERT INTO economy_balances (guild_id, user_id, cash, bank, starting_grant_applied)
+        VALUES ($1, $2, $3, 0, TRUE)
+        ON CONFLICT (guild_id, user_id) DO UPDATE SET
+            cash = economy_balances.cash + $3,
+            starting_grant_applied = TRUE
+        WHERE NOT economy_balances.starting_grant_applied
         RETURNING guild_id, user_id, cash, bank
         "#,
         guild_id.get().cast_signed(),
@@ -148,11 +156,12 @@ pub async fn upsert_balance(
 ) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
-        INSERT INTO economy_balances (guild_id, user_id, cash, bank)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO economy_balances (guild_id, user_id, cash, bank, starting_grant_applied)
+        VALUES ($1, $2, $3, $4, TRUE)
         ON CONFLICT (guild_id, user_id) DO UPDATE SET
             cash = EXCLUDED.cash,
-            bank = EXCLUDED.bank
+            bank = EXCLUDED.bank,
+            starting_grant_applied = TRUE
         "#,
         guild_id.get().cast_signed(),
         user_id.get().cast_signed(),
@@ -373,10 +382,11 @@ pub async fn set_cash(
     let row = sqlx::query_as!(
         RawBalance,
         r#"
-        INSERT INTO economy_balances (guild_id, user_id, cash, bank)
-        VALUES ($1, $2, $3, 0)
+        INSERT INTO economy_balances (guild_id, user_id, cash, bank, starting_grant_applied)
+        VALUES ($1, $2, $3, 0, TRUE)
         ON CONFLICT (guild_id, user_id) DO UPDATE SET
-            cash = EXCLUDED.cash
+            cash = EXCLUDED.cash,
+            starting_grant_applied = TRUE
         RETURNING guild_id, user_id, cash, bank
         "#,
         guild_id.get().cast_signed(),
@@ -666,10 +676,11 @@ pub async fn set_cash_tx(
     let row = sqlx::query_as!(
         RawBalance,
         r#"
-        INSERT INTO economy_balances (guild_id, user_id, cash, bank)
-        VALUES ($1, $2, $3, 0)
+        INSERT INTO economy_balances (guild_id, user_id, cash, bank, starting_grant_applied)
+        VALUES ($1, $2, $3, 0, TRUE)
         ON CONFLICT (guild_id, user_id) DO UPDATE SET
-            cash = EXCLUDED.cash
+            cash = EXCLUDED.cash,
+            starting_grant_applied = TRUE
         RETURNING guild_id, user_id, cash, bank
         "#,
         guild_id.get().cast_signed(),

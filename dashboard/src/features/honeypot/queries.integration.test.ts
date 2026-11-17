@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { backendFetch } from "@/lib/backend";
 import { invalidateGuildChannelCache } from "@/features/_shared/channels";
 import { getHoneypotConfig, saveHoneypotConfig, setupHoneypot } from "./queries";
@@ -19,6 +19,15 @@ vi.mock("@/features/_shared/channels", () => ({
 const GUILD_A = "123456789012345678";
 const GUILD_B = "987654321098765432";
 
+// The honeypot channel is stored in the guild config, and the dashboard refuses to save a
+// config that names a channel from another guild. The check asks Discord for the guild's
+// channels, so the API call is stubbed here.
+const HONEYPOT_CHANNEL = "111111111111111111";
+
+function discordChannelsOk(): Response {
+    return new Response(JSON.stringify([{ id: HONEYPOT_CHANNEL }]), { status: 200 });
+}
+
 function configFixture(overrides: Partial<HoneypotConfig> = {}): HoneypotConfig {
     return {
         enabled: false,
@@ -38,10 +47,17 @@ function backendOk(channelId: string): Response {
     });
 }
 
+const originalFetch = globalThis.fetch;
+
 beforeEach(() => {
     vi.mocked(backendFetch).mockReset();
     vi.mocked(invalidateGuildChannelCache).mockReset();
     vi.mocked(invalidateGuildChannelCache).mockResolvedValue(undefined);
+    globalThis.fetch = vi.fn().mockResolvedValue(discordChannelsOk());
+});
+
+afterEach(() => {
+    globalThis.fetch = originalFetch;
 });
 
 describe("honeypot config against a real database", () => {

@@ -12,8 +12,13 @@ pub async fn lock(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     };
 
-    let response_message =
-        service::lock_temp_vc(&ctx.serenity_context().http, guild_id, channel_id).await?;
+    let response_message = service::lock_temp_vc(
+        &ctx.serenity_context().http,
+        &ctx.data().core.redis,
+        guild_id,
+        channel_id,
+    )
+    .await?;
 
     send_ephemeral(&ctx, response_message).await?;
 

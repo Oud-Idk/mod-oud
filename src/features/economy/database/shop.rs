@@ -379,7 +379,10 @@ pub async fn use_item_tx(
         return Ok(Err(UseItemError::NotOwned { owned }));
     }
 
-    remove_inventory_item_tx(&mut tx, guild_id, user_id, item.id, quantity).await?;
+    if remove_inventory_item_tx(&mut tx, guild_id, user_id, item.id, quantity).await? == 0 {
+        tx.rollback().await?;
+        return Ok(Err(UseItemError::NotOwned { owned: 0 }));
+    }
     apply_db_actions(&mut tx, guild_id, user_id, item, actions).await?;
 
     let balance = get_balance_tx(&mut tx, guild_id, user_id).await?;

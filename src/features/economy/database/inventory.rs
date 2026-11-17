@@ -315,38 +315,46 @@ pub async fn add_inventory_item_tx(
 }
 
 /// Remove an item within a transaction. Deletes the row if quantity reaches 0.
+///
+/// Returns the number of rows affected, so callers can tell whether the requested quantity was
+/// actually available and fail closed instead of silently removing nothing.
 pub async fn remove_inventory_item_tx(
     tx: &mut PgTransaction<'_>,
     guild_id: GuildId,
     user_id: UserId,
     item_id: Uuid,
     quantity: i32,
-) -> Result<(), sqlx::Error> {
+) -> Result<u64, sqlx::Error> {
     if quantity <= 0 {
-        return Ok(());
+        return Ok(0);
     }
 
-    sqlx::query!(
+    let result = sqlx::query!(
         r#"
         WITH deleted AS (
             DELETE FROM economy_inventory
             WHERE guild_id = $1 AND user_id = $2 AND item_id = $3 AND quantity = $4
-            RETURNING 1
+            RETURNING item_id
+        ),
+        updated AS (
+            UPDATE economy_inventory
+            SET quantity = quantity - $4
+            WHERE guild_id = $1 AND user_id = $2 AND item_id = $3 AND quantity > $4
+            RETURNING item_id
         )
-        UPDATE economy_inventory
-        SET quantity = quantity - $4
-        WHERE guild_id = $1 AND user_id = $2 AND item_id = $3 AND quantity > $4
-          AND NOT EXISTS (SELECT 1 FROM deleted)
+        SELECT item_id FROM deleted
+        UNION ALL
+        SELECT item_id FROM updated
         "#,
         guild_id.get().cast_signed(),
         user_id.get().cast_signed(),
         item_id,
-        quantity,
+        quantity
     )
-    .execute(&mut **tx)
+    .fetch_optional(&mut **tx)
     .await?;
 
-    Ok(())
+    Ok(if result.is_some() { 1 } else { 0 })
 }
 
 /// Fetch a single inventory row inside a transaction.

@@ -1,4 +1,6 @@
 #![allow(missing_docs, clippy::unused_async)]
+
+use std::collections::HashSet;
 use std::slice;
 
 use crate::core::config::guild_ctx::get_guild_ctx;
@@ -116,15 +118,33 @@ pub async fn upcoming(
     ctx: Context<'_>,
     #[description = "Days ahead to check (default: 14)"] days: Option<i16>,
 ) -> Result<(), Error> {
+    ctx.defer().await?;
+
     let lookahead_days = i32::from(days.unwrap_or(14).min(60));
+    let guild_id = ctx.guild_id().with_context(|| "Must be run in a guild")?;
 
     let records = database::get_upcoming_birthdays(&ctx.data().core.db, lookahead_days).await?;
 
     if records.is_empty() {
-        send_ephemeral(
-            &ctx,
-            format!("No upcoming birthdays in the next **{lookahead_days}** days."),
-        )
+        ctx.send(poise::CreateReply::default().content(format!(
+            "No upcoming birthdays in the next **{lookahead_days}** days."
+        )))
+        .await?;
+        return Ok(());
+    }
+
+    let candidate_ids: Vec<serenity::UserId> = records.iter().map(|r| r.user_id).collect();
+    let member_ids = filter_guild_members(&ctx, guild_id, &candidate_ids).await;
+
+    let records: Vec<_> = records
+        .into_iter()
+        .filter(|record| member_ids.contains(&record.user_id))
+        .collect();
+
+    if records.is_empty() {
+        ctx.send(poise::CreateReply::default().content(format!(
+            "No upcoming birthdays in the next **{lookahead_days}** days."
+        )))
         .await?;
         return Ok(());
     }
@@ -135,6 +155,80 @@ pub async fn upcoming(
     pagination::paginate_birthdays(ctx, &records, title).await?;
 
     Ok(())
+}
+
+/// Efficiently filters candidate user IDs to only those who are active, non-bot members of `guild_id`.
+async fn filter_guild_members(
+    ctx: &Context<'_>,
+    guild_id: serenity::GuildId,
+    candidate_ids: &[serenity::UserId],
+) -> HashSet<serenity::UserId> {
+    let mut found = HashSet::new();
+    let candidates: HashSet<serenity::UserId> = candidate_ids.iter().copied().collect();
+
+    if candidates.is_empty() {
+        return found;
+    }
+
+    let http = ctx.serenity_context().http.clone();
+
+    if let Some(guild) = ctx.cache().guild(guild_id) {
+        for &user_id in &candidates {
+            if let Some(member) = guild.members.get(&user_id) {
+                if !member.user.bot {
+                    found.insert(user_id);
+                }
+            }
+        }
+    }
+
+    if found.len() == candidates.len() {
+        return found;
+    }
+
+    let remaining: Vec<serenity::UserId> = candidates
+        .iter()
+        .copied()
+        .filter(|id| !found.contains(id))
+        .collect();
+
+    if remaining.len() <= 15 {
+        for user_id in remaining {
+            if let Ok(member) = guild_id.member(&http, user_id).await {
+                if !member.user.bot {
+                    found.insert(user_id);
+                }
+            }
+        }
+        return found;
+    }
+
+    let mut after = None;
+    loop {
+        let members = guild_id
+            .members(&http, Some(1000), after)
+            .await
+            .unwrap_or_default();
+
+        if members.is_empty() {
+            break;
+        }
+
+        for member in &members {
+            if !member.user.bot && candidates.contains(&member.user.id) {
+                found.insert(member.user.id);
+            }
+        }
+
+        // Stop early if all candidates have been confirmed
+        if found.len() == candidates.len() {
+            break;
+        }
+
+        after = members.last().map(|member| member.user.id);
+    }
+
+    found
 }
 
 /// View your registered birthday

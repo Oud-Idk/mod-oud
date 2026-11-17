@@ -1,8 +1,8 @@
 use crate::core::config::settings::GuildSettings;
-use crate::features::bad_words::CompiledRuleset;
+use crate::features::bad_words::{CompiledRuleset, bad_word_config_key};
 use crate::shared::task;
-use fred::clients::SubscriberClient;
-use fred::prelude::{EventInterface, PubsubInterface};
+use fred::clients::{Client, SubscriberClient};
+use fred::interfaces::{EventInterface, KeysInterface, PubsubInterface};
 use moka::future::Cache;
 use serenity::all::GuildId;
 use std::str::FromStr;
@@ -15,15 +15,18 @@ use std::sync::Arc;
 /// - `invalidate:GUILD_ID:bad_words`: evicts the bad word rulesets cache.
 pub fn sync_configs(
     subscriber: &SubscriberClient,
+    redis: &Client,
     config_cache: &Cache<GuildId, GuildSettings>,
     bad_words_cache: &Cache<GuildId, Arc<Vec<CompiledRuleset>>>,
 ) {
     let config_cache = config_cache.clone();
     let bad_words_cache = bad_words_cache.clone();
+    let redis = redis.clone();
 
     subscriber.on_message(move |msg| {
         let config_cache = config_cache.clone();
         let bad_words_cache = bad_words_cache.clone();
+        let redis = redis.clone();
 
         async move {
             // Ignore irrelevant events
@@ -73,6 +76,16 @@ pub fn sync_configs(
                 Some(&"bad_words") => {
                     // Invalidate the Moka bad word rulesets cache
                     bad_words_cache.invalidate(&guild_id).await;
+                    // The Redis L2 entry survives the Moka eviction and would be refilled with
+                    // the stale ruleset, so it goes too.
+                    let l2_key = bad_word_config_key(guild_id);
+                    if let Err(e) = redis.del::<(), _>(&l2_key).await {
+                        tracing::warn!(
+                            error = %e,
+                            %guild_id,
+                            "failed to drop the bad word rulesets from the Redis cache"
+                        );
+                    }
                     tracing::info!(%guild_id, "evicted bad word rulesets from memory cache via pub/sub");
                 }
                 Some(cache_name) => {

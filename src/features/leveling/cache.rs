@@ -306,8 +306,12 @@ pub async fn consume_session(
         s.accumulated_secs += (now - started).max(0);
     }
 
-    // Delete the session key from Redis
-    let _: () = redis.del(session_key).await?;
+    // Only the caller that removes the key owns the session. A concurrent leave for the same user
+    // reads the same session, so a plain GET followed by DEL would award the time twice.
+    let removed: i64 = redis.del(session_key).await?;
+    if removed == 0 {
+        return Ok(None);
+    }
 
     Ok(Some(s))
 }
@@ -389,6 +393,23 @@ pub async fn remove_dirty_guild(
 ) -> Result<(), fred::error::Error> {
     let _: () = redis.srem("levels:dirty_guilds", guild_id_str).await?;
     Ok(())
+}
+
+/// Re-adds a guild to the dirty-guilds set.
+pub async fn mark_guild_dirty(
+    redis: &Client,
+    guild_id_str: &str,
+) -> Result<(), fred::error::Error> {
+    let _: () = redis.sadd("levels:dirty_guilds", guild_id_str).await?;
+    Ok(())
+}
+
+/// Returns whether a guild still has unflushed level records.
+pub async fn pending_key_exists(
+    redis: &Client,
+    guild_id_str: &str,
+) -> Result<bool, fred::error::Error> {
+    redis.exists(keys::pending_levels_key(guild_id_str)).await
 }
 
 /// Reads the set of guilds with pending level flushes.

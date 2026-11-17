@@ -65,13 +65,16 @@ pub async fn should_exclude_from_logging(
                         }
                     }
                     Err(err) => {
+                        // Excluding is the fail-closed choice: an ignored role is a privacy
+                        // setting, and a lookup that failed cannot prove the role is absent.
                         warn!(
                             error = ?err,
                             %author_id,
                             %guild_id,
-                            fallback = "role exclusion not applied",
+                            fallback = "message excluded",
                             "guild member metadata fetch failed"
                         );
+                        return true;
                     }
                 }
             }

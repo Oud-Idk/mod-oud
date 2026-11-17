@@ -29,7 +29,7 @@ pub fn is_event_allowed(
     is_role_allowed(starboard, member)
 }
 
-fn is_role_allowed(starboard: &Starboard, member: &Member) -> bool {
+pub fn is_role_allowed(starboard: &Starboard, member: &Member) -> bool {
     let restriction_type = starboard.role_restriction_type;
     if restriction_type == RestrictionType::None {
         return true;

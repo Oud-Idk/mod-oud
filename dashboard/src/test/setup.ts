@@ -33,6 +33,11 @@ const workerDatabase = workerDatabaseName(runId, workerId);
 
 await createDatabaseFromTemplate(workerDatabase, template);
 
+// The dashboard's channel-ownership check calls Discord with the bot token before it
+// stores a config that names a channel. The db tests never reach Discord, so a
+// placeholder token is enough here and the API call itself is stubbed per test.
+process.env.DISCORD_TOKEN = process.env.DISCORD_TOKEN ?? "db-test-token";
+
 process.env.DATABASE_URL = testDatabaseUrl(workerDatabase);
 
 // Verify the app's own pool points at the worker database before a test can reach

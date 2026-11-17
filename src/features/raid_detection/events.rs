@@ -50,6 +50,11 @@ pub async fn handle_raid_detection(
         return Ok(());
     };
 
+    if !raid_config.enabled {
+        debug!(%guild_id, "raid detection disabled");
+        return Ok(());
+    }
+
     let is_already_active = cache::check_raid_active(&data.core.redis, guild_id)
         .await
         .unwrap_or(false);
@@ -225,6 +230,12 @@ async fn apply_guild_mitigations(
             }
             RaidAction::BumpVerification => {
                 database::bump_verification_to_max(&data.core.db, guild_id).await?;
+                crate::core::config::settings::invalidate_settings_cache(
+                    &data.core.redis,
+                    &data.core.guild_configs_cache,
+                    guild_id,
+                )
+                .await;
                 audit::verification_bumped(guild_id, None);
             }
             RaidAction::PauseInvites { hours } => {

@@ -544,3 +544,77 @@ describe("economy work messages against a real database", () => {
         });
     });
 });
+describe("economy starting grant against a real database", () => {
+    const STARTING_BALANCE = 50;
+
+    // Mirrors the bot's ensure_balance: the insert seeds a new wallet and marks the grant as
+    // applied, and the conflict branch only tops up a wallet that never received the grant.
+    async function ensureBalance(
+        guildId: string,
+        userId: string,
+        startingBalance: number
+    ): Promise<{ cash: string; starting_grant_applied: boolean } | undefined> {
+        const { rows } = await db.query<{ cash: string; starting_grant_applied: boolean }>(
+            `INSERT INTO economy_balances (guild_id, user_id, cash, bank, starting_grant_applied)
+             VALUES ($1::bigint, $2::bigint, $3::bigint, 0, TRUE)
+             ON CONFLICT (guild_id, user_id) DO UPDATE SET
+                cash = economy_balances.cash + $3,
+                starting_grant_applied = TRUE
+             WHERE NOT economy_balances.starting_grant_applied
+             RETURNING cash, starting_grant_applied`,
+            [guildId, userId, startingBalance]
+        );
+        return rows[0];
+    }
+
+    it("seeds a new wallet with the starting balance", async () => {
+        const row = await ensureBalance(GUILD_A, "900000000000000001", STARTING_BALANCE);
+
+        expect(row?.cash).toBe(String(STARTING_BALANCE));
+        expect(row?.starting_grant_applied).toBe(true);
+    });
+
+    it("does not grant twice for the same member", async () => {
+        await ensureBalance(GUILD_A, "900000000000000001", STARTING_BALANCE);
+        const second = await ensureBalance(GUILD_A, "900000000000000001", STARTING_BALANCE);
+
+        // The conflict branch is skipped, so no row comes back and the balance is untouched.
+        expect(second).toBeUndefined();
+
+        const { rows } = await db.query<{ cash: string }>(
+            "SELECT cash FROM economy_balances WHERE guild_id = $1::bigint AND user_id = $2::bigint",
+            [GUILD_A, "900000000000000001"]
+        );
+        expect(rows[0]?.cash).toBe(String(STARTING_BALANCE));
+    });
+
+    it("grants the balance to a wallet another member's transfer created", async () => {
+        // A transfer creates the recipient's wallet without the starting grant.
+        await db.query(
+            "INSERT INTO economy_balances (guild_id, user_id, cash, bank) VALUES ($1::bigint, $2::bigint, 100, 0)",
+            [GUILD_A, "900000000000000002"]
+        );
+
+        const row = await ensureBalance(GUILD_A, "900000000000000002", STARTING_BALANCE);
+
+        expect(row?.cash).toBe(String(100 + STARTING_BALANCE));
+        expect(row?.starting_grant_applied).toBe(true);
+    });
+
+    it("leaves a wallet the grant already reached alone", async () => {
+        await db.query(
+            "INSERT INTO economy_balances (guild_id, user_id, cash, bank, starting_grant_applied) VALUES ($1::bigint, $2::bigint, 100, 0, TRUE)",
+            [GUILD_A, "900000000000000003"]
+        );
+
+        const row = await ensureBalance(GUILD_A, "900000000000000003", STARTING_BALANCE);
+
+        expect(row).toBeUndefined();
+
+        const { rows } = await db.query<{ cash: string }>(
+            "SELECT cash FROM economy_balances WHERE guild_id = $1::bigint AND user_id = $2::bigint",
+            [GUILD_A, "900000000000000003"]
+        );
+        expect(rows[0]?.cash).toBe("100");
+    });
+});

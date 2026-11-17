@@ -68,8 +68,16 @@ pub async fn subscribe_feed(
     channel_id: ChannelId,
     guild_id: GuildId,
 ) -> Result<Subscription, SubscribeError> {
-    let resp = core
-        .reqwest_client
+    if !crate::shared::http::is_safe_destination_async(url).await {
+        return Err(SubscribeError::UnusableFeed(
+            "That URL points somewhere the bot is not allowed to fetch.".to_string(),
+        ));
+    }
+
+    let safe_client = crate::shared::http::build_safe_http_client()
+        .inspect_err(|e| tracing::error!(error = ?e, "failed to initialize safe HTTP client"))
+        .map_err(|_| SubscribeError::Internal)?;
+    let resp = safe_client
         .get(url)
         .send()
         .await

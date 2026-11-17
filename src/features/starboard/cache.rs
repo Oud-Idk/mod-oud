@@ -5,6 +5,7 @@ use chrono::{DateTime, Utc};
 use fred::clients::Client;
 use fred::interfaces::{FredResult, KeysInterface, LuaInterface};
 use fred::types::Expiration;
+use serenity::all::{GuildId, MessageId};
 use sqlx::PgPool;
 use sqlx::postgres::types::PgInterval;
 use sqlx::types::Json;
@@ -156,6 +157,44 @@ pub async fn apply_starboard_op_if_exists(
 /// Fetches the current cached star count for a starboard entry, if present.
 pub async fn get_starboard_count(redis: &Client, key: &str) -> Option<u64> {
     redis.get::<Option<u64>, _>(key).await.unwrap_or(None)
+}
+
+/// Redis key marking a source message as deleted.
+///
+/// A publication that is in flight when the source is deleted cannot be seen by the cleanup
+/// lookup, because the association is recorded after the message is sent. The marker lets the
+/// publication notice the deletion instead of leaving the copy behind.
+#[must_use]
+pub fn deleted_source_key(guild_id: GuildId, orig_msg_id: MessageId) -> String {
+    format!("starboard:deleted:{guild_id}:{orig_msg_id}")
+}
+
+/// Marks a source message as deleted.
+///
+/// # Errors
+/// Returns `Err` if Redis fails to set the key.
+pub async fn mark_source_deleted(
+    redis: &Client,
+    guild_id: GuildId,
+    orig_msg_id: MessageId,
+) -> FredResult<()> {
+    redis
+        .set(
+            deleted_source_key(guild_id, orig_msg_id),
+            "1",
+            Some(Expiration::EX(3600)),
+            None,
+            false,
+        )
+        .await
+}
+
+/// Whether a source message was deleted while a publication was in flight.
+pub async fn is_source_deleted(redis: &Client, guild_id: GuildId, orig_msg_id: MessageId) -> bool {
+    redis
+        .exists(deleted_source_key(guild_id, orig_msg_id))
+        .await
+        .unwrap_or(false)
 }
 
 /// Caches the emoji reaction count for a starboard entry with a 1-hour expiration.

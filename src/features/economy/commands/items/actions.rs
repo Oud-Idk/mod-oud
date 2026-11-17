@@ -119,15 +119,17 @@ pub async fn apply_db_actions(
             .await?
             .is_none()
     {
-        // The item is still consumed either way, so record the uncharged fee.
+        // Fail closed: an item action that cannot charge its fee must not be applied, so the
+        // whole purchase/use rolls back instead of being granted for free.
         warn!(
             %guild_id,
             %user_id,
             item_id = %item.id,
             item_name = %item.name,
             deduction = actions.deduct_cash,
-            "item RemoveBalance could not charge the user; the item was still consumed"
+            "item RemoveBalance could not charge the user; aborting the transaction"
         );
+        return Err(sqlx::Error::RowNotFound);
     }
 
     for &(id, count) in &actions.add_items {
@@ -135,7 +137,10 @@ pub async fn apply_db_actions(
     }
 
     for &(id, count) in &actions.remove_items {
-        remove_inventory_item_tx(tx, guild_id, user_id, id, count).await?;
+        if remove_inventory_item_tx(tx, guild_id, user_id, id, count).await? == 0 {
+            // Fail closed: the player did not have enough of the item to satisfy the action.
+            return Err(sqlx::Error::RowNotFound);
+        }
     }
 
     Ok(())
@@ -204,8 +209,54 @@ async fn modify_roles(
     item_name: &str,
     add: bool,
 ) {
+    if role_ids.is_empty() {
+        return;
+    }
+
+    let guild_roles = match guild_id.roles(&ctx.http()).await {
+        Ok(roles) => roles,
+        Err(e) => {
+            warn!(
+                %guild_id,
+                error = ?e,
+                item_name,
+                "failed to fetch guild roles for economy item action"
+            );
+            return;
+        }
+    };
+
+    let bot_top_position = bot_top_role_position(ctx, guild_id, &guild_roles).await;
+
     let reason = format!("Item action: {item_name}");
     for &role_id in role_ids {
+        if let Some(role) = guild_roles.get(&role_id) {
+            if role.managed {
+                warn!(
+                    %guild_id,
+                    %user_id,
+                    %role_id,
+                    item_name,
+                    "refusing to modify managed role via item action"
+                );
+                continue;
+            }
+
+            if add
+                && let Some(top) = bot_top_position
+                && role.position >= top
+            {
+                warn!(
+                    %guild_id,
+                    %user_id,
+                    %role_id,
+                    item_name,
+                    "refusing to grant a role at or above the bot's highest role"
+                );
+                continue;
+            }
+        }
+
         let res = if add {
             ctx.http()
                 .add_member_role(guild_id, user_id, role_id, Some(&reason))
@@ -232,6 +283,23 @@ async fn modify_roles(
     }
 }
 
+async fn bot_top_role_position(
+    ctx: &Context<'_>,
+    guild_id: GuildId,
+    guild_roles: &std::collections::HashMap<serenity::all::RoleId, serenity::all::Role>,
+) -> Option<u16> {
+    let serenity_ctx = ctx.serenity_context();
+    let member = guild_id
+        .current_user_member(&serenity_ctx.http)
+        .await
+        .ok()?;
+    member
+        .roles
+        .iter()
+        .filter_map(|role_id| guild_roles.get(role_id))
+        .map(|role| role.position)
+        .max()
+}
 /// Normalizes both `quantities` map and `item_ids` fallback into a single list of
 /// (`item_id`, `total_qty`).
 fn resolve_item_counts(
