@@ -54,7 +54,16 @@ pub async fn handle_honeypot(ctx: &Context, message: &Message, data: &BotData) -
         return Ok(false);
     }
 
-    message.delete(ctx).await?;
+    // The ban is the decision, the deletion is cleanup. A member who deletes their own message
+    // while this runs must not escape the ban they earned.
+    if let Err(e) = message.delete(ctx).await {
+        warn!(
+            error = ?e,
+            %guild_id,
+            message_id = %message.id,
+            "honeypot message cleanup failed; the ban still applies"
+        );
+    }
 
     let dmd = honeypot.dmd.unwrap_or(0);
     let reason = honeypot

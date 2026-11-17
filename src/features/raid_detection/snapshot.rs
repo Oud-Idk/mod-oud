@@ -24,6 +24,28 @@ pub async fn ensure_preraid_state_saved(
 ) -> Result<(), Error> {
     let partial_guild = guild_id.to_partial_guild(&ctx.http).await?;
 
+    let conn = &data.core.redis;
+
+    // The Redis copy expires after a day while the database keeps the snapshot for the whole
+    // raid, so the database decides whether the original state was already recorded. Capturing
+    // it again later would record the locked state as the original.
+    let recorded = match database::load_active_raid_state(&data.core.db, guild_id).await {
+        Ok(state) => state,
+        Err(e) => {
+            error!(error = ?e, %guild_id, "active raid state read failed");
+            None
+        }
+    };
+
+    if let Some(recorded) = recorded {
+        // Put the fast-path copy back so a raid that outlived the Redis copy still has one.
+        let serialized = serde_json::to_string(&recorded)?;
+        cache::save_preraid_snapshot(conn, guild_id, &serialized).await?;
+        let _: () = cache::add_guild_to_raid(guild_id, conn).await?;
+        debug!(%guild_id, "pre-raid state already recorded; kept the original snapshot");
+        return Ok(());
+    }
+
     let everyone_role_id = RoleId::new(guild_id.get());
     let everyone_perms = partial_guild
         .roles
@@ -52,16 +74,16 @@ pub async fn ensure_preraid_state_saved(
     let serialized = serde_json::to_string(&snapshot)?;
 
     // Store in Redis with NX (Only set if not already present) and an expiration (24 hours)
-    let conn = &data.core.redis;
     let snapshot_saved = cache::save_preraid_snapshot(conn, guild_id, &serialized).await?;
 
     let _: () = cache::add_guild_to_raid(guild_id, conn).await?;
 
-    if let Err(e) = database::save_active_raid_state(&data.core.db, guild_id, &snapshot).await {
-        error!(error = ?e, %guild_id, "active raid state write to database failed");
-    }
-
     if snapshot_saved {
+        // Only the capture that won the race may record the original state.
+        if let Err(e) = database::save_active_raid_state(&data.core.db, guild_id, &snapshot).await {
+            error!(error = ?e, %guild_id, "active raid state write to database failed");
+        }
+
         info!(
             %guild_id,
             everyone_permissions = everyone_perms,
@@ -101,21 +123,38 @@ pub async fn restore_preraid_state(
     data: &BotData,
     guild_id: GuildId,
 ) -> Result<RestoreOutcome, Error> {
-    let Some(json_str) = cache::peek_preraid_snapshot(&data.core.redis, guild_id).await? else {
-        debug!(%guild_id, "no pre-raid snapshot; nothing to restore");
-        return Ok(RestoreOutcome::Absent);
-    };
-
-    let snapshot: PreRaidState = match serde_json::from_str(&json_str) {
-        Ok(snapshot) => snapshot,
-        Err(e) => {
-            // This snapshot will never parse. Discard it so it cannot block later attempts, and
-            // report it distinctly: the guild may still be locked.
-            error!(error = ?e, %guild_id, "pre-raid snapshot unreadable; discarding it");
-            if let Err(e) = cache::delete_preraid_snapshot(&data.core.redis, guild_id).await {
-                warn!(error = ?e, %guild_id, "unreadable pre-raid snapshot not discarded");
+    let snapshot: PreRaidState = match cache::peek_preraid_snapshot(&data.core.redis, guild_id)
+        .await?
+    {
+        Some(json_str) => match serde_json::from_str(&json_str) {
+            Ok(snapshot) => snapshot,
+            Err(e) => {
+                // This snapshot will never parse. Discard it so it cannot block later attempts, and
+                // report it distinctly: the guild may still be locked.
+                error!(error = ?e, %guild_id, "pre-raid snapshot unreadable; discarding it");
+                if let Err(e) = cache::delete_preraid_snapshot(&data.core.redis, guild_id).await {
+                    warn!(error = ?e, %guild_id, "unreadable pre-raid snapshot not discarded");
+                }
+                return Ok(RestoreOutcome::Unreadable);
             }
-            return Ok(RestoreOutcome::Unreadable);
+        },
+        None => {
+            // The Redis copy expires after a day, but a raid that runs longer must still be
+            // reversible, so the database copy is the fallback.
+            match database::load_active_raid_state(&data.core.db, guild_id).await {
+                Ok(Some(snapshot)) => {
+                    debug!(%guild_id, "pre-raid snapshot recovered from the database");
+                    snapshot
+                }
+                Ok(None) => {
+                    debug!(%guild_id, "no pre-raid snapshot; nothing to restore");
+                    return Ok(RestoreOutcome::Absent);
+                }
+                Err(e) => {
+                    warn!(error = ?e, %guild_id, "pre-raid snapshot read from the database failed");
+                    return Ok(RestoreOutcome::Unreadable);
+                }
+            }
         }
     };
 

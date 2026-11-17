@@ -12,6 +12,7 @@ use poise::serenity_prelude::FullEvent;
 use serenity::all::{ChannelId, GuildId, UserId};
 use tracing::Instrument;
 use tracing::debug_span;
+use tracing::warn;
 
 /// Central gateway event dispatcher registered as the Poise event handler.
 ///
@@ -337,7 +338,7 @@ async fn on_voice_state_update(
 ) -> Result<()> {
     Box::pin(async move {
         temp_voice::handle_voice_event(ctx, old, new, data).await?;
-        temp_voice::handle_log_user_join(data, new).await?;
+        temp_voice::handle_log_user_join(ctx, data, new).await?;
         leveling::handle_voice_leveling(ctx, old, new, data).await?;
         Ok::<(), Error>(())
     })
@@ -369,7 +370,14 @@ async fn on_message_delete(
     guild_id: Option<&serenity::GuildId>,
 ) -> Result<(), anyhow::Error> {
     Box::pin(async move {
-        starboard::handle_cleanup_if_starboard(ctx, &data.core.db, *deleted_message_id).await?;
+        starboard::handle_cleanup_if_starboard(
+            ctx,
+            &data.core.db,
+            &data.core.redis,
+            guild_id.copied(),
+            *deleted_message_id,
+        )
+        .await?;
         message_logging::message_log_delete(ctx, *channel_id, *deleted_message_id, guild_id, data)
             .await
     })
@@ -392,7 +400,14 @@ async fn on_message(
 
         tickets::handle_tickets(ctx, new_message, data).await?;
         leveling::handle_text_leveling(ctx, new_message, data).await?;
-        custom_commands::handle_custom_cmd(ctx, new_message, data).await?;
+
+        // A custom command is optional, so its failure must not stop the channel policy check
+        // that follows. A member who refuses bot DMs would otherwise keep a message that
+        // breaks the media-only rule.
+        if let Err(e) = custom_commands::handle_custom_cmd(ctx, new_message, data).await {
+            warn!(error = ?e, "custom command handling failed; the media-only check still runs");
+        }
+
         media_only::handle_media_channel_message(ctx, new_message, data).await?;
         Ok(())
     })

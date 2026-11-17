@@ -14,11 +14,29 @@ use tracing::{debug, warn};
 ///
 /// # Errors
 /// Returns an error if the Redis voice state write fails.
-pub async fn handle_log_user_join(data: &BotData, new: &VoiceState) -> Result<(), Error> {
+pub async fn handle_log_user_join(
+    ctx: &Context,
+    data: &BotData,
+    new: &VoiceState,
+) -> Result<(), Error> {
     let Some(guild_id) = new.guild_id else {
         return Ok(());
     };
     let user_id = new.user_id;
+
+    // The gateway delivers voice state updates in order, but the handlers run concurrently, so a
+    // slower handler can write its event after a newer one. The framework's cache already holds
+    // the newer state, and writing the stale one would restore a presence the member no longer
+    // has.
+    let cached = voice_state::cached_presence(ctx, guild_id, user_id);
+    if voice_state::is_stale_update(cached, new.channel_id) {
+        debug!(
+            %guild_id,
+            %user_id,
+            "stale voice state update ignored; a newer one already landed"
+        );
+        return Ok(());
+    }
 
     match new.channel_id {
         Some(channel_id) => {

@@ -55,7 +55,7 @@ pub async fn handle_voice_leveling(
     }
 
     if old_eligible && let Some(old_ch) = old_channel {
-        if let Some(session) = cache::consume_session(redis, &session_key, now).await? {
+        let award = if let Some(session) = cache::consume_session(redis, &session_key, now).await? {
             let eligible_secs = session.accumulated_secs;
 
             if eligible_secs >= 10 {
@@ -68,20 +68,27 @@ pub async fn handle_voice_leveling(
                     join_time: synthetic_join_time,
                     leave_time: now,
                 };
-                award_vc_xp_for_session(ctx, award_ctx, data, &leveling_config).await?;
+                award_vc_xp_for_session(ctx, award_ctx, data, &leveling_config).await
             } else {
                 debug!(
                     %guild_id,
                     user_id = user_id.get(),
                     "discarded brief voice session (<10s)"
                 );
+                Ok(())
             }
-        }
+        } else {
+            Ok(())
+        };
 
+        // The member has left whether or not the award worked. Leaving them in the occupant set
+        // would keep a solo channel eligible and let the remaining member bank XP alone.
         let remaining = cache::remove_occupant(redis, guild_id, old_ch, user_id).await?;
         if remaining < 2 {
             cache::pause_channel_clocks(redis, guild_id, old_ch, now).await?;
         }
+
+        award?;
 
         debug!(%guild_id, user_id = user_id.get(), "voice session closed");
     }

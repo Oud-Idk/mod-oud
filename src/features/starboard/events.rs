@@ -3,7 +3,7 @@ use crate::features::starboard::builder::count_emoji_and_cache;
 use crate::features::starboard::cache::{apply_starboard_op_if_exists, get_starboards};
 use crate::features::starboard::jobs::debounced_starboard_sync;
 use crate::features::starboard::types::StarboardOp;
-use crate::features::starboard::{builder, database, perms};
+use crate::features::starboard::{builder, cache, database, perms};
 use anyhow::Result;
 use serenity::all::{Context, MessageId, Reaction};
 use sqlx::PgPool;
@@ -18,10 +18,21 @@ use tracing::{debug, info, instrument, warn};
 pub async fn handle_cleanup_if_starboard(
     ctx: &Context,
     db: &PgPool,
+    redis: &fred::clients::Client,
+    guild_id: Option<serenity::all::GuildId>,
     orig_msg_id: MessageId,
 ) -> Result<()> {
     let rows = database::fetch_starboard(db, orig_msg_id).await?;
     debug!(rows_found = rows.len(), "fetched linked starboard messages");
+
+    // A publication that is in flight cannot be seen by the lookup below, because the
+    // association is recorded after the message is sent. The marker tells that publication
+    // the source is gone, so it removes what it sent instead of leaving it behind.
+    if let Some(guild_id) = guild_id
+        && let Err(e) = cache::mark_source_deleted(redis, guild_id, orig_msg_id).await
+    {
+        warn!(error = ?e, %orig_msg_id, "source deletion marker not recorded");
+    }
 
     for row in rows {
         if row.keep_deleted_messages.unwrap_or(false) {
